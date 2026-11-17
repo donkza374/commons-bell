@@ -120,7 +120,7 @@ public class DataFetcher {
     }
 
     // --- high-level fetch ---------------------------------------------------
-    public Snapshot fetch(int constituencyId) throws IOException {
+    public Snapshot fetch(int constituencyId) throws Exception {
         Snapshot snap = new Snapshot();
 
         // constituency name
@@ -188,7 +188,7 @@ public class DataFetcher {
                             memberVotes.put(String.valueOf(mv.opt("PersonID")), mv.optString("Vote"));
                         }
                     }
-                } catch (IOException ignore) {
+                } catch (Exception ignore) {
                     // keep the division itself, just without the per-member detail
                 }
             }
@@ -228,7 +228,7 @@ public class DataFetcher {
                                     + "?reportId=" + reportId + "&personId=" + mla.personId)),
                             "AllHansardComponentsList", "HansardComponent");
                     extractStatements(snap, comps, mla.name, mla.party, reportId, date);
-                } catch (IOException ignore) {
+                } catch (Exception ignore) {
                     // skip this person/report on error
                 }
             }
