@@ -431,7 +431,8 @@ public class MainActivity extends Activity {
     }
 
     private boolean hasVoteInfo(DataFetcher.Vote v) {
-        return (v.outcome != null && !v.outcome.isEmpty())
+        return (v.description != null && !v.description.isEmpty())
+                || (v.outcome != null && !v.outcome.isEmpty())
                 || (v.totalAyes != null && !v.totalAyes.isEmpty())
                 || (v.totalNoes != null && !v.totalNoes.isEmpty())
                 || (v.totalAbstentions != null && !v.totalAbstentions.isEmpty());
@@ -450,8 +451,13 @@ public class MainActivity extends Activity {
         lp.topMargin = dp(6);
         b.setLayoutParams(lp);
 
+        if (v.description != null && !v.description.isEmpty()) {
+            b.addView(tv(truncate(v.description, 420), C_INK, 13f, Typeface.NORMAL));
+        }
         if (v.outcome != null && !v.outcome.isEmpty()) {
-            b.addView(tv(v.outcome, C_INK, 13f, Typeface.BOLD));
+            TextView o = tv(v.outcome, C_ACCENT, 13f, Typeface.BOLD);
+            o.setPadding(0, dp(6), 0, 0);
+            b.addView(o);
         }
         StringBuilder sb = new StringBuilder();
         if (v.totalAyes != null && !v.totalAyes.isEmpty()) sb.append("Ayes ").append(v.totalAyes);
@@ -582,6 +588,13 @@ public class MainActivity extends Activity {
     private static int parseIntSafe(String s, int def) {
         if (s == null) return def;
         try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return def; }
+    }
+
+    private static String truncate(String s, int max) {
+        if (s == null) return "";
+        s = s.trim();
+        if (s.length() <= max) return s;
+        return s.substring(0, max).trim() + "…";
     }
 
     private static String timeAgo(long epochMillis) {

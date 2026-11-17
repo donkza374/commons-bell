@@ -15,8 +15,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Talks directly to the NI Assembly open-data JSON services (no CORS in
@@ -57,6 +55,7 @@ public class DataFetcher {
         public String totalAyes;
         public String totalNoes;
         public String totalAbstentions;
+        public String description;         // full motion text: what the policy actually is
         public List<MyVote> myVotes = new ArrayList<>();
     }
 
@@ -194,6 +193,7 @@ public class DataFetcher {
                 "DivisionList", "Division");
 
         int maxDetails = 20;
+        Map<String, List<JSONObject>> plenaryCache = new HashMap<>();
         for (int i = 0; i < divArr.length(); i++) {
             JSONObject d = divArr.optJSONObject(i);
             if (d == null) continue;
@@ -221,16 +221,31 @@ public class DataFetcher {
                 }
             }
 
-            // division outcome + totals (for the "more info" dropdown)
+            // division outcome + totals + policy description (for the "more info" dropdown)
             if (!v.documentId.isEmpty() && !"null".equals(v.documentId)) {
                 try {
-                    String xml = get(BASE + "/plenary.asmx/GetDivisionResult?documentId=" + v.documentId);
-                    v.outcome = xmlTag(xml, "Outcome");
-                    v.totalAyes = xmlTag(xml, "TotalAyes");
-                    v.totalNoes = xmlTag(xml, "TotalNoes");
-                    v.totalAbstentions = xmlTag(xml, "TotalAbstentions");
+                    JSONObject res = arr(
+                            new JSONObject(get(BASE + "/plenary.asmx/GetDivisionResult_JSON"
+                                    + "?documentId=" + v.documentId)),
+                            "DivisionDetails", "Division").optJSONObject(0);
+                    if (res != null) {
+                        v.outcome = res.optString("Outcome");
+                        v.totalAyes = res.optString("TotalAyes");
+                        v.totalNoes = res.optString("TotalNoes");
+                        v.totalAbstentions = res.optString("TotalAbstentions");
+                    }
                 } catch (Exception ignore) {
                     // leave outcome blank; the division subject still shows
+                }
+
+                // full motion text from the Order Paper = what the policy actually is
+                try {
+                    String dateOnly = d.optString("DivisionDate");
+                    if (dateOnly.length() >= 10) dateOnly = dateOnly.substring(0, 10);
+                    v.description = matchDescription(v.subject,
+                            getPlenaryItemsCached(dateOnly, plenaryCache));
+                } catch (Exception ignore) {
+                    // no description; the title + outcome still show
                 }
             }
 
@@ -284,11 +299,53 @@ public class DataFetcher {
         return snap;
     }
 
-    private static String xmlTag(String xml, String tag) {
-        if (xml == null) return "";
-        Matcher m = Pattern.compile("<" + tag + "\\b[^>]*>(.*?)</" + tag + ">",
-                Pattern.DOTALL | Pattern.CASE_INSENSITIVE).matcher(xml);
-        return m.find() ? m.group(1).trim() : "";
+    private List<JSONObject> getPlenaryItemsCached(String date, Map<String, List<JSONObject>> cache)
+            throws Exception {
+        List<JSONObject> items = cache.get(date);
+        if (items != null) return items;
+        JSONArray a = arr(new JSONObject(get(
+                BASE + "/plenary.asmx/GetPlenaryItemsPlenaryDate_JSON"
+                        + "?startDate=" + date + "&endDate=" + date)),
+                "PlenaryList", "Plenary");
+        items = new ArrayList<>();
+        for (int i = 0; i < a.length(); i++) {
+            JSONObject o = a.optJSONObject(i);
+            if (o != null) items.add(o);
+        }
+        cache.put(date, items);
+        return items;
+    }
+
+    /** Normalise a division subject / plenary title so the two can be matched. */
+    private static String normalizeTitle(String s) {
+        if (s == null) return "";
+        String t = s.toLowerCase();
+        t = t.replaceAll("\\[.*?]", " ");       // strip "[Committee Chair - ...]" etc.
+        t = t.replaceAll("-#?\\d+", " ");        // strip leading "-#1" markers
+        t = t.replaceAll("\\s*-\\s*amendment.*", ""); // strip " - Amendment 1: ..."
+        t = t.replaceAll("\\s+", " ").trim();
+        return t;
+    }
+
+    /** Match a division to its plenary item and return the full motion text. */
+    private String matchDescription(String subject, List<JSONObject> items) {
+        String ns = normalizeTitle(subject);
+        if (ns.length() < 8) return "";
+        String best = "";
+        int bestLen = 0;
+        for (JSONObject it : items) {
+            String text = it.optString("Text");
+            if (text == null || text.trim().isEmpty()) continue;
+            String nt = normalizeTitle(it.optString("Title"));
+            if (nt.length() < 8) continue;
+            if (ns.contains(nt) || nt.contains(ns)) {
+                if (nt.length() > bestLen) {
+                    bestLen = nt.length();
+                    best = clean(text);
+                }
+            }
+        }
+        return best;
     }
 
     private void extractStatements(Snapshot snap, JSONArray comps,
@@ -360,6 +417,7 @@ public class DataFetcher {
                 o.put("totalAyes", v.totalAyes);
                 o.put("totalNoes", v.totalNoes);
                 o.put("totalAbstentions", v.totalAbstentions);
+                o.put("description", v.description);
                 JSONArray mv = new JSONArray();
                 for (MyVote x : v.myVotes) {
                     JSONObject mo = new JSONObject();
@@ -426,6 +484,7 @@ public class DataFetcher {
                     v.totalAyes = o.optString("totalAyes");
                     v.totalNoes = o.optString("totalNoes");
                     v.totalAbstentions = o.optString("totalAbstentions");
+                    v.description = o.optString("description");
                     JSONArray mv = o.optJSONArray("myVotes");
                     if (mv != null) {
                         for (int j = 0; j < mv.length(); j++) {
