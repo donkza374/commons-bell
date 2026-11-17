@@ -14,29 +14,15 @@
         android:gravity="center_vertical"
         android:padding="16dp">
 
-        <LinearLayout
-            android:orientation="vertical"
+        <TextView
+            android:id="@+id/title"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1">
-
-            <TextView
-                android:id="@+id/title"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/app_name"
-                android:textColor="#FFFFFF"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:id="@+id/area_name"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="#CCFFFFFF"
-                android:textSize="12sp"
-                android:text="—" />
-        </LinearLayout>
+            android:layout_weight="1"
+            android:text="@string/app_name"
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold" />
 
         <Button
             android:id="@+id/update_btn"
@@ -47,75 +33,117 @@
             android:backgroundTint="#FFFFFF" />
     </LinearLayout>
 
-    <!-- Status line -->
+    <!-- Location picker -->
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#FFFFFF"
+        android:gravity="center_vertical"
+        android:paddingLeft="16dp"
+        android:paddingRight="16dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Your area:"
+            android:textColor="@color/muted"
+            android:textSize="13sp" />
+
+        <Spinner
+            android:id="@+id/constituency_spinner"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginLeft="12dp"
+            android:textColor="@color/ink" />
+    </LinearLayout>
+
+    <!-- Progress + status -->
+    <ProgressBar
+        android:id="@+id/progress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:indeterminate="true"
+        android:visibility="gone" />
+
     <TextView
         android:id="@+id/status"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/accent_soft"
         android:textColor="@color/accent"
-        android:padding="8dp"
+        android:padding="10dp"
         android:textSize="13sp"
         android:text="Loading…" />
 
-    <ScrollView
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipe"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:fillViewport="true">
+        android:layout_height="match_parent">
 
-        <LinearLayout
-            android:orientation="vertical"
+        <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:padding="16dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/your_mlas"
-                android:textColor="@color/muted"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:letterSpacing="0.05"
-                android:layout_marginBottom="8dp" />
+            android:layout_height="match_parent"
+            android:fillViewport="true">
 
             <LinearLayout
-                android:id="@+id/mlas_container"
                 android:orientation="vertical"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-
-            <TextView
-                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/recent_votes"
-                android:textColor="@color/muted"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:layout_marginTop="20dp"
-                android:layout_marginBottom="8dp" />
+                android:padding="16dp">
 
-            <LinearLayout
-                android:id="@+id/votes_container"
-                android:orientation="vertical"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/your_mlas"
+                    android:textColor="@color/muted"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:letterSpacing="0.05"
+                    android:layout_marginBottom="8dp" />
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/recent_statements"
-                android:textColor="@color/muted"
-                android:textSize="13sp"
-                android:textStyle="bold"
-                android:layout_marginTop="20dp"
-                android:layout_marginBottom="8dp" />
+                <LinearLayout
+                    android:id="@+id/mlas_container"
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
 
-            <LinearLayout
-                android:id="@+id/statements_container"
-                android:orientation="vertical"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
-        </LinearLayout>
-    </ScrollView>
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/recent_votes"
+                    android:textColor="@color/muted"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:id="@+id/votes_container"
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/recent_statements"
+                    android:textColor="@color/muted"
+                    android:textSize="13sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginBottom="8dp" />
+
+                <LinearLayout
+                    android:id="@+id/statements_container"
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+        </ScrollView>
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 </LinearLayout>

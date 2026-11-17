@@ -1,6 +1,7 @@
 package com.commonsbell;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 
 import androidx.work.Worker;
 import androidx.work.WorkerParameters;
@@ -15,7 +16,10 @@ public class RefreshWorker extends Worker {
     @Override
     public Result doWork() {
         try {
-            DataFetcher.Snapshot s = new DataFetcher().fetch(DataFetcher.DEFAULT_CONSTITUENCY_ID);
+            SharedPreferences p = getApplicationContext()
+                    .getSharedPreferences("commonsbell", Context.MODE_PRIVATE);
+            int id = p.getInt("constituency_id", DataFetcher.DEFAULT_CONSTITUENCY_ID);
+            DataFetcher.Snapshot s = new DataFetcher().fetch(id);
             Cache.save(getApplicationContext(), s);
             return Result.success();
         } catch (Exception e) {

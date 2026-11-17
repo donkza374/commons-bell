@@ -10,8 +10,8 @@ android {
         applicationId "com.commonsbell"
         minSdk 26
         targetSdk 34
-        versionCode 3
-        versionName "0.2.1"
+        versionCode 4
+        versionName "0.3.0"
     }
 
     buildTypes {
@@ -26,8 +26,9 @@ android {
     }
 }
 
-// Only WorkManager (for the scheduled background refresh) plus the Android
-// framework. Data fetching uses HttpURLConnection + org.json (both built in).
+// WorkManager (scheduled background refresh) + SwipeRefreshLayout (pull-to-refresh).
+// Everything else is the Android framework (HttpURLConnection + org.json for data).
 dependencies {
     implementation 'androidx.work:work-runtime:2.9.0'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
 }

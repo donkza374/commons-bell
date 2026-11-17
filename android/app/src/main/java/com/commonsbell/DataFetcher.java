@@ -70,6 +70,11 @@ public class DataFetcher {
         public List<Statement> statements = new ArrayList<>();
     }
 
+    public static class Constituency {
+        public String id;
+        public String name;
+    }
+
     // --- low-level HTTP -----------------------------------------------------
     private String get(String url) throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
@@ -117,6 +122,23 @@ public class DataFetcher {
         if (isoDate == null) return "";
         String t = isoDate.replace("T", " ");
         return t.length() > 16 ? t.substring(0, 16) : t;
+    }
+
+    /** All NI Assembly constituencies, for the location picker. */
+    public List<Constituency> getConstituencies() throws Exception {
+        List<Constituency> out = new ArrayList<>();
+        JSONArray list = arr(
+                new JSONObject(get(BASE + "/members.asmx/GetAllConstituencies_JSON")),
+                "AllConstituencies", "Constituency");
+        for (int i = 0; i < list.length(); i++) {
+            JSONObject o = list.optJSONObject(i);
+            if (o == null) continue;
+            Constituency c = new Constituency();
+            c.id = String.valueOf(o.opt("ConstituencyId"));
+            c.name = o.optString("ConstituencyName");
+            out.add(c);
+        }
+        return out;
     }
 
     // --- high-level fetch ---------------------------------------------------
