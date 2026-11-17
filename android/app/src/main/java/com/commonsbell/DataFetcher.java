@@ -15,6 +15,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Talks directly to the NI Assembly open-data JSON services (no CORS in
@@ -51,6 +53,10 @@ public class DataFetcher {
         public String subject;
         public String date;   // "2026-11-10 20:53"
         public String type;   // Simple Majority / Cross-Community
+        public String outcome;            // "The Motion Was Carried" / "The Motion Was Defeated"
+        public String totalAyes;
+        public String totalNoes;
+        public String totalAbstentions;
         public List<MyVote> myVotes = new ArrayList<>();
     }
 
@@ -215,6 +221,19 @@ public class DataFetcher {
                 }
             }
 
+            // division outcome + totals (for the "more info" dropdown)
+            if (!v.documentId.isEmpty() && !"null".equals(v.documentId)) {
+                try {
+                    String xml = get(BASE + "/plenary.asmx/GetDivisionResult?documentId=" + v.documentId);
+                    v.outcome = xmlTag(xml, "Outcome");
+                    v.totalAyes = xmlTag(xml, "TotalAyes");
+                    v.totalNoes = xmlTag(xml, "TotalNoes");
+                    v.totalAbstentions = xmlTag(xml, "TotalAbstentions");
+                } catch (Exception ignore) {
+                    // leave outcome blank; the division subject still shows
+                }
+            }
+
             for (Mla mla : snap.mlas) {
                 MyVote mv = new MyVote();
                 mv.name = mla.name;
@@ -263,6 +282,13 @@ public class DataFetcher {
         }
 
         return snap;
+    }
+
+    private static String xmlTag(String xml, String tag) {
+        if (xml == null) return "";
+        Matcher m = Pattern.compile("<" + tag + "\\b[^>]*>(.*?)</" + tag + ">",
+                Pattern.DOTALL | Pattern.CASE_INSENSITIVE).matcher(xml);
+        return m.find() ? m.group(1).trim() : "";
     }
 
     private void extractStatements(Snapshot snap, JSONArray comps,
@@ -330,6 +356,10 @@ public class DataFetcher {
                 o.put("subject", v.subject);
                 o.put("date", v.date);
                 o.put("type", v.type);
+                o.put("outcome", v.outcome);
+                o.put("totalAyes", v.totalAyes);
+                o.put("totalNoes", v.totalNoes);
+                o.put("totalAbstentions", v.totalAbstentions);
                 JSONArray mv = new JSONArray();
                 for (MyVote x : v.myVotes) {
                     JSONObject mo = new JSONObject();
@@ -392,6 +422,10 @@ public class DataFetcher {
                     v.subject = o.optString("subject");
                     v.date = o.optString("date");
                     v.type = o.optString("type");
+                    v.outcome = o.optString("outcome");
+                    v.totalAyes = o.optString("totalAyes");
+                    v.totalNoes = o.optString("totalNoes");
+                    v.totalAbstentions = o.optString("totalAbstentions");
                     JSONArray mv = o.optJSONArray("myVotes");
                     if (mv != null) {
                         for (int j = 0; j < mv.length(); j++) {

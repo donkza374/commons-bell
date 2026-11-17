@@ -26,7 +26,10 @@ import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends Activity {
@@ -41,7 +44,6 @@ public class MainActivity extends Activity {
     private SwipeRefreshLayout swipe;
     private LinearLayout mlasContainer;
     private LinearLayout votesContainer;
-    private LinearLayout statementsContainer;
 
     private final List<DataFetcher.Constituency> constituencies = new ArrayList<>();
     private boolean populatingSpinner = false;
@@ -52,7 +54,6 @@ public class MainActivity extends Activity {
     private static final int C_INK = Color.parseColor("#1A2233");
     private static final int C_MUTED = Color.parseColor("#6B7280");
     private static final int C_LINE = Color.parseColor("#E5E7EB");
-    private static final int C_ERROR = Color.parseColor("#B91C1C");
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,7 +67,6 @@ public class MainActivity extends Activity {
         swipe = findViewById(R.id.swipe);
         mlasContainer = findViewById(R.id.mlas_container);
         votesContainer = findViewById(R.id.votes_container);
-        statementsContainer = findViewById(R.id.statements_container);
 
         currentConstituencyId = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .getInt(KEY_CONSTITUENCY, DataFetcher.DEFAULT_CONSTITUENCY_ID);
@@ -131,7 +131,6 @@ public class MainActivity extends Activity {
                             setLoading(false);
                             setStatus("Couldn't reach the NI Assembly. Check your connection and try again.",
                                     true);
-                            // fall back to the single default so the app still works
                             populateSpinner();
                         }
                     });
@@ -213,7 +212,7 @@ public class MainActivity extends Activity {
 
     private void setStatus(String msg, boolean error) {
         statusView.setText(msg);
-        statusView.setTextColor(error ? C_ERROR : C_ACCENT);
+        statusView.setTextColor(error ? Color.parseColor("#B91C1C") : C_ACCENT);
         statusView.setBackgroundColor(error ? Color.parseColor("#FDECEC") : Color.parseColor("#E6F0EF"));
     }
 
@@ -231,31 +230,158 @@ public class MainActivity extends Activity {
     // Rendering
     // -------------------------------------------------------------------------
     private void render(DataFetcher.Snapshot s) {
-        renderMlas(s.mlas);
+        Map<String, List<DataFetcher.Statement>> byName = groupStatements(s.statements);
+        renderMlas(s.mlas, byName);
         renderVotes(s.votes);
-        renderStatements(s.statements);
     }
 
-    private void renderMlas(List<DataFetcher.Mla> mlas) {
+    // -------------------------------------------------------------------------
+    // MLAs (with their statements collapsed into each card)
+    // -------------------------------------------------------------------------
+    private Map<String, List<DataFetcher.Statement>> groupStatements(List<DataFetcher.Statement> stmts) {
+        Map<String, List<DataFetcher.Statement>> m = new HashMap<>();
+        if (stmts == null) return m;
+        for (DataFetcher.Statement s : stmts) {
+            String key = s.mla == null ? "" : s.mla;
+            List<DataFetcher.Statement> list = m.get(key);
+            if (list == null) {
+                list = new ArrayList<>();
+                m.put(key, list);
+            }
+            list.add(s);
+        }
+        for (List<DataFetcher.Statement> list : m.values()) {
+            Collections.sort(list, new java.util.Comparator<DataFetcher.Statement>() {
+                @Override public int compare(DataFetcher.Statement a, DataFetcher.Statement b) {
+                    String da = a.date == null ? "" : a.date;
+                    String db = b.date == null ? "" : b.date;
+                    return db.compareTo(da); // newest first
+                }
+            });
+        }
+        return m;
+    }
+
+    private void renderMlas(List<DataFetcher.Mla> mlas,
+                            Map<String, List<DataFetcher.Statement>> byName) {
         mlasContainer.removeAllViews();
         if (mlas == null || mlas.isEmpty()) {
             mlasContainer.addView(tv("No MLAs found for this area.", C_MUTED, 14f, Typeface.NORMAL));
             return;
         }
         for (final DataFetcher.Mla m : mlas) {
-            LinearLayout card = card();
-            card.addView(tv(m.name, C_INK, 15f, Typeface.BOLD));
-            TextView party = tv(m.party, partyColor(m.party), 13f, Typeface.BOLD);
-            card.addView(party);
-            if (m.profileUrl != null && !m.profileUrl.isEmpty()) {
-                card.setOnClickListener(new View.OnClickListener() {
-                    @Override public void onClick(View v) { open(m.profileUrl); }
-                });
-            }
-            mlasContainer.addView(card);
+            List<DataFetcher.Statement> stmts = byName.get(m.name);
+            if (stmts == null) stmts = Collections.emptyList();
+            mlasContainer.addView(buildMlaCard(m, stmts));
         }
     }
 
+    private LinearLayout buildMlaCard(final DataFetcher.Mla m,
+                                      final List<DataFetcher.Statement> stmts) {
+        LinearLayout card = card();
+        int pc = partyColor(m.party);
+
+        // header row (tap to expand/collapse statements)
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+
+        LinearLayout left = new LinearLayout(this);
+        left.setOrientation(LinearLayout.VERTICAL);
+        left.setLayoutParams(new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        left.addView(tv(m.name, pc, 16f, Typeface.BOLD));
+        left.addView(tv(m.party, pc, 12f, Typeface.BOLD));
+        String last = mostRecentDate(stmts);
+        if (!last.isEmpty()) {
+            left.addView(tv("Last spoke " + formatDate(last), C_MUTED, 12f, Typeface.NORMAL));
+        }
+        header.addView(left);
+
+        final TextView arrow = tv("▸", C_MUTED, 18f, Typeface.BOLD);
+        header.addView(arrow);
+        card.addView(header);
+
+        // collapsible body: statements + profile link
+        final LinearLayout body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.VERTICAL);
+        body.setVisibility(View.GONE);
+        body.setPadding(dp(4), dp(8), dp(4), dp(2));
+
+        if (m.profileUrl != null && !m.profileUrl.isEmpty()) {
+            TextView prof = tv("Official profile ↗", C_ACCENT, 12f, Typeface.BOLD);
+            prof.setPadding(0, 0, 0, dp(4));
+            prof.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { open(m.profileUrl); }
+            });
+            body.addView(prof);
+        }
+
+        if (!stmts.isEmpty()) {
+            for (int i = 0; i < stmts.size(); i++) {
+                if (i > 0) body.addView(divider());
+                body.addView(buildStatementEntry(stmts.get(i)));
+            }
+        } else {
+            body.addView(tv("No recent statements in Hansard.", C_MUTED, 13f, Typeface.NORMAL));
+        }
+        card.addView(body);
+
+        final boolean[] expanded = {false};
+        header.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                expanded[0] = !expanded[0];
+                body.setVisibility(expanded[0] ? View.VISIBLE : View.GONE);
+                arrow.setText(expanded[0] ? "▾" : "▸");
+            }
+        });
+
+        return card;
+    }
+
+    private LinearLayout buildStatementEntry(final DataFetcher.Statement s) {
+        LinearLayout e = new LinearLayout(this);
+        e.setOrientation(LinearLayout.VERTICAL);
+        e.setPadding(0, dp(6), 0, dp(6));
+        if (s.date != null && !s.date.isEmpty()) {
+            e.addView(tv(formatDate(s.date), C_MUTED, 11f, Typeface.NORMAL));
+        }
+        if (s.topic != null && !s.topic.isEmpty()) {
+            e.addView(tv(s.topic, C_ACCENT, 12f, Typeface.BOLD));
+        }
+        if (s.text != null && !s.text.isEmpty()) {
+            e.addView(tv(s.text, C_INK, 13f, Typeface.NORMAL));
+        }
+        if (s.url != null && !s.url.isEmpty()) {
+            TextView link = tv("Official Report ↗", C_ACCENT, 12f, Typeface.BOLD);
+            link.setPadding(0, dp(4), 0, 0);
+            link.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { open(s.url); }
+            });
+            e.addView(link);
+        }
+        return e;
+    }
+
+    private View divider() {
+        View v = new View(this);
+        v.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
+        v.setBackgroundColor(C_LINE);
+        return v;
+    }
+
+    private String mostRecentDate(List<DataFetcher.Statement> stmts) {
+        String latest = "";
+        for (DataFetcher.Statement s : stmts) {
+            if (s.date != null && s.date.compareTo(latest) > 0) latest = s.date;
+        }
+        return latest;
+    }
+
+    // -------------------------------------------------------------------------
+    // Votes (party-coloured names + collapsible "more info")
+    // -------------------------------------------------------------------------
     private void renderVotes(List<DataFetcher.Vote> votes) {
         votesContainer.removeAllViews();
         if (votes == null || votes.isEmpty()) {
@@ -274,7 +400,7 @@ public class MainActivity extends Activity {
                 row.setGravity(Gravity.CENTER_VERTICAL);
                 row.setPadding(0, dp(4), 0, dp(4));
 
-                TextView who = tv(mv.name, C_INK, 13f, Typeface.NORMAL);
+                TextView who = tv(mv.name, partyColor(mv.party), 13f, Typeface.NORMAL);
                 who.setLayoutParams(new LinearLayout.LayoutParams(
                         0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
                 row.addView(who);
@@ -282,35 +408,65 @@ public class MainActivity extends Activity {
                 row.addView(chip(voteLabel(mv.vote), voteColor(mv.vote)));
                 card.addView(row);
             }
+
+            if (hasVoteInfo(v)) {
+                final LinearLayout info = buildVoteInfo(v);
+                info.setVisibility(View.GONE);
+                final TextView toggle = tv("▸ More info", C_ACCENT, 12f, Typeface.BOLD);
+                toggle.setPadding(0, dp(6), 0, 0);
+                card.addView(toggle);
+                card.addView(info);
+
+                final boolean[] open = {false};
+                toggle.setOnClickListener(new View.OnClickListener() {
+                    @Override public void onClick(View vv) {
+                        open[0] = !open[0];
+                        info.setVisibility(open[0] ? View.VISIBLE : View.GONE);
+                        toggle.setText(open[0] ? "▾ Less info" : "▸ More info");
+                    }
+                });
+            }
             votesContainer.addView(card);
         }
     }
 
-    private void renderStatements(List<DataFetcher.Statement> stmts) {
-        statementsContainer.removeAllViews();
-        if (stmts == null || stmts.isEmpty()) {
-            statementsContainer.addView(tv("No recent statements from your MLAs.", C_MUTED, 14f, Typeface.NORMAL));
-            return;
+    private boolean hasVoteInfo(DataFetcher.Vote v) {
+        return (v.outcome != null && !v.outcome.isEmpty())
+                || (v.totalAyes != null && !v.totalAyes.isEmpty())
+                || (v.totalNoes != null && !v.totalNoes.isEmpty())
+                || (v.totalAbstentions != null && !v.totalAbstentions.isEmpty());
+    }
+
+    private LinearLayout buildVoteInfo(DataFetcher.Vote v) {
+        LinearLayout b = new LinearLayout(this);
+        b.setOrientation(LinearLayout.VERTICAL);
+        b.setPadding(dp(12), dp(10), dp(12), dp(10));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.parseColor("#F6F7F9"));
+        bg.setCornerRadius(dp(8));
+        b.setBackground(bg);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(6);
+        b.setLayoutParams(lp);
+
+        if (v.outcome != null && !v.outcome.isEmpty()) {
+            b.addView(tv(v.outcome, C_INK, 13f, Typeface.BOLD));
         }
-        for (final DataFetcher.Statement s : stmts) {
-            LinearLayout card = card();
-            TextView head = tv(s.mla, C_INK, 14f, Typeface.BOLD);
-            card.addView(head);
-            TextView party = tv(s.party, partyColor(s.party), 12f, Typeface.BOLD);
-            card.addView(party);
-            if (s.topic != null && !s.topic.isEmpty()) {
-                card.addView(tv(s.topic, C_ACCENT, 12f, Typeface.BOLD));
-            }
-            card.addView(tv(s.text, C_INK, 13f, Typeface.NORMAL));
-            if (s.url != null && !s.url.isEmpty()) {
-                TextView link = tv("Official Report ↗", C_ACCENT, 12f, Typeface.BOLD);
-                link.setOnClickListener(new View.OnClickListener() {
-                    @Override public void onClick(View v) { open(s.url); }
-                });
-                card.addView(link);
-            }
-            statementsContainer.addView(card);
+        StringBuilder sb = new StringBuilder();
+        if (v.totalAyes != null && !v.totalAyes.isEmpty()) sb.append("Ayes ").append(v.totalAyes);
+        if (v.totalNoes != null && !v.totalNoes.isEmpty()) {
+            if (sb.length() > 0) sb.append("   ·   ");
+            sb.append("Noes ").append(v.totalNoes);
         }
+        if (v.totalAbstentions != null && !v.totalAbstentions.isEmpty()) {
+            if (sb.length() > 0) sb.append("   ·   ");
+            sb.append("Abstained ").append(v.totalAbstentions);
+        }
+        if (sb.length() > 0) {
+            b.addView(tv(sb.toString(), C_MUTED, 12f, Typeface.NORMAL));
+        }
+        return b;
     }
 
     private void open(String url) {
@@ -379,8 +535,7 @@ public class MainActivity extends Activity {
     }
 
     private static final String[] AYE_CODES = {
-            "AYE", "AYE (PROXY)", "SIN", "SUPPORT",
-            "TA", "FOR", "YES", "CONTENT"
+            "AYE", "AYE (PROXY)", "SIN", "SUPPORT", "TA", "FOR", "YES", "CONTENT"
     };
     private static final String[] NO_CODES = {
             "NO", "NO (PROXY)", "AGAINST", "NOES", "NOT CONTENT", "NIL"
@@ -407,6 +562,21 @@ public class MainActivity extends Activity {
         if (p.contains("sdlp")) return Color.parseColor("#2AA82A");
         if (p.equals("green") || p.contains("green party")) return Color.parseColor("#008000");
         return C_MUTED;
+    }
+
+    private static String formatDate(String iso) {
+        if (iso == null || iso.isEmpty()) return "";
+        String[] p = iso.split("-");
+        if (p.length != 3) return iso;
+        String[] months = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
+        try {
+            int mm = Integer.parseInt(p[1]);
+            int dd = Integer.parseInt(p[2]);
+            String mon = (mm >= 1 && mm <= 12) ? months[mm - 1] : p[1];
+            return dd + " " + mon + " " + p[0];
+        } catch (NumberFormatException e) {
+            return iso;
+        }
     }
 
     private static int parseIntSafe(String s, int def) {
