@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="accent">#134E4A</color>
+    <color name="accent_soft">#E6F0EF</color>
+    <color name="ink">#1A2233</color>
+    <color name="muted">#6B7280</color>
+    <color name="line">#E5E7EB</color>
+    <color name="bg">#F6F7F9</color>
+    <color name="aye">#15803D</color>
+    <color name="no">#B91C1C</color>
+    <color name="absent">#6B7280</color>
+    <color name="ic_launcher_background">#134E4A</color>
+</resources>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>NI Politics Tracker</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header>
+    <div class="inner">
+      <div>
+        <h1>NI Politics Tracker</h1>
+        <div class="sub">Stormont · MLAs &amp; votes</div>
+      </div>
+      <div class="spacer"></div>
+      <select id="constituency" aria-label="Choose constituency"></select>
+      <button id="refreshBtn" class="primary">↻ Refresh</button>
+    </div>
+  </header>
+
+  <div class="status" id="status">
+    <div class="inner"><span class="dot"></span> Loading…</div>
+  </div>
+
+  <div class="wrap">
+    <h2 class="section">Your MLAs — <span id="areaName">your area</span></h2>
+    <div id="mlas"></div>
+
+    <h2 class="section">Recent division votes <span class="count"></span></h2>
+    <div id="votes"></div>
+
+    <h2 class="section">Recent statements</h2>
+    <div id="statements"></div>
+
+    <footer>
+      <p>
+        Data from the <a href="https://data.niassembly.gov.uk/" target="_blank" rel="noopener">Northern Ireland Assembly Open Data</a>,
+        licensed under the <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/" target="_blank" rel="noopener">Open Government Licence v3.0</a>.
+      </p>
+      <p>
+        Westminster MP tracking (e.g. Jim Allister for North Antrim) is the next module — currently showing the Northern Ireland Assembly (MLAs) only.
+      </p>
+    </footer>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

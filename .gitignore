@@ -1,0 +1,21 @@
+# Python (web app)
+__pycache__/
+*.pyc
+state.json
+server.log
+
+# Android build outputs
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/captures/
+*.apk
+*.aab
+*.keystore
+*.jks
+
+# IDE / OS
+.idea/
+*.iml
+.DS_Store

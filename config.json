@@ -1,0 +1,9 @@
+{
+  "constituency_id": 9,
+  "constituency_name": "North Antrim",
+  "refresh_interval_hours": 3,
+  "vote_watch_minutes": 5,
+  "votes_days_back": 45,
+  "statements_reports_back": 5,
+  "max_division_details": 20
+}
