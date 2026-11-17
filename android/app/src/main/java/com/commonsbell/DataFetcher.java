@@ -1,4 +1,4 @@
-package com.nipoliticstracker;
+package com.commonsbell;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -74,7 +74,7 @@ public class DataFetcher {
     private String get(String url) throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
         c.setRequestMethod("GET");
-        c.setRequestProperty("User-Agent", "NIPoliticsTracker/0.1");
+        c.setRequestProperty("User-Agent", "CommonsBell/0.1");
         c.setConnectTimeout(20000);
         c.setReadTimeout(40000);
         try {

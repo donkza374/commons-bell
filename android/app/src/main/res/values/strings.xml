@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">NI Politics</string>
+    <string name="app_name">Commons Bell</string>
     <string name="update">Update</string>
     <string name="your_mlas">Your MLAs</string>
     <string name="recent_votes">Recent votes</string>

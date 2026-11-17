@@ -1,4 +1,4 @@
-// NI Politics Tracker frontend
+// Commons Bell frontend
 (function () {
   "use strict";
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-NI Politics Tracker server — pure Python standard library (no dependencies).
+Commons Bell server — pure Python standard library (no dependencies).
 
 Serves a small phone-friendly web app and a JSON API, backed by fetcher.py
 (NI Assembly open data). Single user, keeps the latest snapshot on disk so the
@@ -155,7 +155,7 @@ def _scheduler_loop():
 # ---------------------------------------------------------------------------
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "NI-Politics-Tracker/0.1"
+    server_version = "Commons-Bell/0.1"
 
     def _send_json(self, obj, status=200):
         body = json.dumps(obj).encode("utf-8")

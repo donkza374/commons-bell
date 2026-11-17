@@ -1,4 +1,4 @@
-# NI Politics Tracker
+# Commons Bell
 
 Shows you **your MLAs (Northern Ireland Assembly)**, **how they vote**, and **what they say in the Chamber** — linked to the official Assembly sources. Built for **Northern Ireland first**, with the data pulled straight from Stormont's open data.
 
@@ -26,7 +26,7 @@ phone — there is no backend and nothing to host. Features:
 The APK is built automatically by GitHub Actions on every push:
 
 1. Go to the **Actions** tab → pick the latest successful **"Build APK"** run.
-2. Download the **`ni-politics-tracker-apk`** artifact and unzip it to get `app-debug.apk`.
+2. Download the **`commons-bell-apk`** artifact and unzip it to get `app-debug.apk`.
 3. Copy it to your Android phone and install (you'll be asked to allow "install from unknown sources" for a first-time sideloaded APK).
 
 > This first build is a **debug** APK (auto-signed, installable directly). A

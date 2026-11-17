@@ -50,7 +50,7 @@ PROFILE_BASE = "https://aims.niassembly.gov.uk/mlas/details.aspx"
 DIVISIONS_URL = "https://aims.niassembly.gov.uk/plenary/divisions.aspx"
 HANSARD_URL = "https://aims.niassembly.gov.uk/officialreport/report.aspx"
 
-_USER_AGENT = {"User-Agent": "NI-Politics-Tracker/0.1 (personal use)"}
+_USER_AGENT = {"User-Agent": "Commons-Bell/0.1 (personal use)"}
 
 
 def _get(url, params=None):

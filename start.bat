@@ -1,5 +1,5 @@
 @echo off
 cd /d "%~dp0"
-echo Starting NI Politics Tracker...
+echo Starting Commons Bell...
 python server.py %*
 pause

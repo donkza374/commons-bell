@@ -1,4 +1,4 @@
-package com.nipoliticstracker;
+package com.commonsbell;
 
 import android.app.Activity;
 import android.content.Intent;

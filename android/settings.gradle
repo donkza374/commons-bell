@@ -11,5 +11,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "NIPoliticsTracker"
+rootProject.name = "CommonsBell"
 include ':app'

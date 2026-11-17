@@ -1,4 +1,4 @@
-package com.nipoliticstracker;
+package com.commonsbell;
 
 import android.content.Context;
 import android.content.SharedPreferences;
