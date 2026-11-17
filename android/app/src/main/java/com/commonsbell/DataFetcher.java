@@ -27,7 +27,7 @@ public class DataFetcher {
     /** North Antrim = constituency 9 in the Assembly open data. */
     public static final int DEFAULT_CONSTITUENCY_ID = 9;
 
-    static final String BASE = "http://data.niassembly.gov.uk";
+    static final String BASE = "https://data.niassembly.gov.uk";
     static final String PROFILE_BASE = "https://aims.niassembly.gov.uk/mlas/details.aspx";
     static final String OFFICIAL_REPORT_BASE = "https://aims.niassembly.gov.uk/officialreport/report.aspx";
 

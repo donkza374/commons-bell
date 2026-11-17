@@ -45,7 +45,7 @@ from datetime import date, timedelta
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-BASE = "http://data.niassembly.gov.uk"
+BASE = "https://data.niassembly.gov.uk"
 PROFILE_BASE = "https://aims.niassembly.gov.uk/mlas/details.aspx"
 DIVISIONS_URL = "https://aims.niassembly.gov.uk/plenary/divisions.aspx"
 HANSARD_URL = "https://aims.niassembly.gov.uk/officialreport/report.aspx"
