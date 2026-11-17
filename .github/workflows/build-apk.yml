@@ -23,12 +23,20 @@ jobs:
         with:
           gradle-version: '8.6'
 
-      - name: Build debug APK
-        run: gradle assembleDebug
+      - name: Decode signing keystore
+        run: echo "${{ secrets.COMMONS_BELL_KEYSTORE_B64 }}" | base64 -d > keystore.jks
+        working-directory: android/app
+
+      - name: Build release APK (signed)
+        run: gradle assembleRelease
         working-directory: android
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/android/app/keystore.jks
+          COMMONS_BELL_KEYSTORE_PASS: ${{ secrets.COMMONS_BELL_KEYSTORE_PASS }}
+          COMMONS_BELL_KEY_ALIAS: ${{ secrets.COMMONS_BELL_KEY_ALIAS }}
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: commons-bell-apk
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: android/app/build/outputs/apk/release/*.apk
