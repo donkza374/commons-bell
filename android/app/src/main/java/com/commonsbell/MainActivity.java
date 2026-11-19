@@ -44,6 +44,12 @@ public class MainActivity extends Activity {
     private SwipeRefreshLayout swipe;
     private LinearLayout mlasContainer;
     private LinearLayout votesContainer;
+    private View homePage;
+    private LinearLayout homeContainer;
+    private View areaPage;
+    private TextView navHome;
+    private TextView navArea;
+    private String currentAreaName = "North Antrim";
 
     private final List<DataFetcher.Constituency> constituencies = new ArrayList<>();
     private boolean populatingSpinner = false;
@@ -67,6 +73,11 @@ public class MainActivity extends Activity {
         swipe = findViewById(R.id.swipe);
         mlasContainer = findViewById(R.id.mlas_container);
         votesContainer = findViewById(R.id.votes_container);
+        homePage = findViewById(R.id.home_page);
+        homeContainer = findViewById(R.id.home_container);
+        areaPage = findViewById(R.id.area_page);
+        navHome = findViewById(R.id.nav_home);
+        navArea = findViewById(R.id.nav_area);
 
         currentConstituencyId = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .getInt(KEY_CONSTITUENCY, DataFetcher.DEFAULT_CONSTITUENCY_ID);
@@ -105,6 +116,15 @@ public class MainActivity extends Activity {
         }
 
         loadConstituencies();
+
+        navHome.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { showHome(); }
+        });
+        navArea.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { showArea(); }
+        });
+        showArea();
+        loadHomeData();
     }
 
     // -------------------------------------------------------------------------
@@ -227,9 +247,185 @@ public class MainActivity extends Activity {
     }
 
     // -------------------------------------------------------------------------
+    // Navigation (Home / My Area)
+    // -------------------------------------------------------------------------
+    private void showHome() {
+        homePage.setVisibility(View.VISIBLE);
+        areaPage.setVisibility(View.GONE);
+        setNav(true);
+    }
+
+    private void showArea() {
+        homePage.setVisibility(View.GONE);
+        areaPage.setVisibility(View.VISIBLE);
+        setNav(false);
+    }
+
+    private void setNav(boolean homeActive) {
+        navHome.setTextColor(homeActive ? C_ACCENT : C_MUTED);
+        navHome.setTypeface(Typeface.DEFAULT, homeActive ? Typeface.BOLD : Typeface.NORMAL);
+        navArea.setTextColor(homeActive ? C_MUTED : C_ACCENT);
+        navArea.setTypeface(Typeface.DEFAULT, homeActive ? Typeface.NORMAL : Typeface.BOLD);
+    }
+
+    // -------------------------------------------------------------------------
+    // Home page
+    // -------------------------------------------------------------------------
+    private void loadHomeData() {
+        if (homeContainer.getChildCount() == 0) {
+            homeContainer.addView(tv("Loading…", C_MUTED, 14f, Typeface.NORMAL));
+        }
+        new Thread(new Runnable() {
+            @Override public void run() {
+                try {
+                    final List<DataFetcher.DiaryItem> diary = new DataFetcher().getBusinessDiary(7);
+                    final List<DataFetcher.Business> bills = new DataFetcher().getBillsInProgress();
+                    runOnUiThread(new Runnable() {
+                        @Override public void run() { renderHome(diary, bills); }
+                    });
+                } catch (final Exception e) {
+                    runOnUiThread(new Runnable() {
+                        @Override public void run() {
+                            renderHomeError("Couldn't reach the Assembly. Pull to retry.");
+                        }
+                    });
+                }
+            }
+        }).start();
+    }
+
+    private void renderHome(List<DataFetcher.DiaryItem> diary, List<DataFetcher.Business> bills) {
+        homeContainer.removeAllViews();
+        homeContainer.addView(buildAreaNavCard());
+
+        homeContainer.addView(sectionHeader("WHAT'S ON TODAY"));
+        if (diary == null || diary.isEmpty()) {
+            homeContainer.addView(tv("Nothing scheduled in the coming days.", C_MUTED, 14f, Typeface.NORMAL));
+        } else {
+            int shown = 0;
+            for (DataFetcher.DiaryItem d : diary) {
+                if (shown++ >= 15) break;
+                homeContainer.addView(buildDiaryCard(d));
+            }
+        }
+
+        homeContainer.addView(sectionHeader("BILLS IN PROGRESS"));
+        if (bills == null || bills.isEmpty()) {
+            homeContainer.addView(tv("No bills in progress found.", C_MUTED, 14f, Typeface.NORMAL));
+        } else {
+            int shown = 0;
+            for (DataFetcher.Business b : bills) {
+                if (shown++ >= 12) break;
+                homeContainer.addView(buildBusinessCard(b));
+            }
+        }
+    }
+
+    private void renderHomeError(String msg) {
+        homeContainer.removeAllViews();
+        homeContainer.addView(buildAreaNavCard());
+        homeContainer.addView(tv(msg, C_MUTED, 14f, Typeface.NORMAL));
+    }
+
+    private LinearLayout buildAreaNavCard() {
+        final LinearLayout card = card();
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout left = new LinearLayout(this);
+        left.setOrientation(LinearLayout.VERTICAL);
+        left.setLayoutParams(new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        left.addView(tv("YOUR AREA", C_MUTED, 11f, Typeface.BOLD));
+        left.addView(tv(currentAreaName, C_INK, 16f, Typeface.BOLD));
+        row.addView(left);
+        row.addView(tv("→", C_ACCENT, 20f, Typeface.BOLD));
+        card.addView(row);
+        card.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { showArea(); }
+        });
+        return card;
+    }
+
+    private TextView sectionHeader(String text) {
+        TextView t = tv(text, C_MUTED, 12f, Typeface.BOLD);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(16);
+        lp.bottomMargin = dp(8);
+        t.setLayoutParams(lp);
+        return t;
+    }
+
+    private LinearLayout buildDiaryCard(DataFetcher.DiaryItem d) {
+        LinearLayout card = card();
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        TextView time = tv((d.startTime == null || d.startTime.isEmpty()) ? "--:--" : d.startTime,
+                C_INK, 15f, Typeface.BOLD);
+        time.setPadding(0, 0, dp(12), 0);
+        row.addView(time);
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setLayoutParams(new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        col.addView(tv(d.organisationName, C_INK, 14f, Typeface.BOLD));
+        String sub = d.eventType == null ? "" : d.eventType;
+        if (d.locationRoom != null && !d.locationRoom.isEmpty()) sub += "  ·  " + d.locationRoom;
+        if (d.weekday != null && !d.weekday.isEmpty()) sub += "  ·  " + d.weekday;
+        col.addView(tv(sub, C_MUTED, 12f, Typeface.NORMAL));
+        row.addView(col);
+        card.addView(row);
+        return card;
+    }
+
+    private LinearLayout buildBusinessCard(final DataFetcher.Business b) {
+        LinearLayout card = card();
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout left = new LinearLayout(this);
+        left.setOrientation(LinearLayout.VERTICAL);
+        left.setLayoutParams(new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        left.addView(tv(b.title, C_INK, 14f, Typeface.BOLD));
+        String sub = (b.type == null || b.type.isEmpty()) ? "" : b.type;
+        if (b.date != null && !b.date.isEmpty()) {
+            sub = sub.isEmpty() ? formatDate(b.date) : sub + "  ·  " + formatDate(b.date);
+        }
+        if (!sub.isEmpty()) left.addView(tv(sub, C_MUTED, 12f, Typeface.NORMAL));
+        header.addView(left);
+
+        if (b.text != null && !b.text.isEmpty()) {
+            final TextView arrow = tv("▸", C_MUTED, 16f, Typeface.BOLD);
+            header.addView(arrow);
+            card.addView(header);
+            final TextView body = tv(truncate(b.text, 400), C_INK, 13f, Typeface.NORMAL);
+            body.setVisibility(View.GONE);
+            body.setPadding(dp(4), dp(8), dp(4), 0);
+            card.addView(body);
+            final boolean[] open = {false};
+            header.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    open[0] = !open[0];
+                    body.setVisibility(open[0] ? View.VISIBLE : View.GONE);
+                    arrow.setText(open[0] ? "▾" : "▸");
+                }
+            });
+        } else {
+            card.addView(header);
+        }
+        return card;
+    }
+
+    // -------------------------------------------------------------------------
     // Rendering
     // -------------------------------------------------------------------------
     private void render(DataFetcher.Snapshot s) {
+        if (s.constituencyName != null && !s.constituencyName.isEmpty()) {
+            currentAreaName = s.constituencyName;
+        }
         Map<String, List<DataFetcher.Statement>> byName = groupStatements(s.statements);
         renderMlas(s.mlas, byName);
         renderVotes(s.votes);

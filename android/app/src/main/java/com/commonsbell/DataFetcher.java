@@ -80,6 +80,22 @@ public class DataFetcher {
         public String name;
     }
 
+    public static class DiaryItem {
+        public String eventType;        // "Committee Meeting" / "Sitting of the Assembly"
+        public String organisationName;
+        public String startTime;        // "09:30"
+        public String weekday;          // "Tuesday"
+        public String locationRoom;
+        public String eventDate;        // "2026-11-17"
+    }
+
+    public static class Business {
+        public String title;
+        public String type;   // Motion / Motion Amendment / ...
+        public String text;   // full motion text
+        public String date;
+    }
+
     // --- low-level HTTP -----------------------------------------------------
     private String get(String url) throws IOException {
         HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
@@ -142,6 +158,68 @@ public class DataFetcher {
             c.id = String.valueOf(o.opt("ConstituencyId"));
             c.name = o.optString("ConstituencyName");
             out.add(c);
+        }
+        return out;
+    }
+
+    private static String shortClock(String iso) {
+        // "2026-11-17T09:30:00+00:00" -> "09:30"
+        if (iso == null) return "";
+        int t = iso.indexOf('T');
+        if (t < 0 || iso.length() < t + 6) return "";
+        return iso.substring(t + 1, t + 6);
+    }
+
+    /** Upcoming Assembly business (committee meetings + sittings) for the next N days. */
+    public List<DiaryItem> getBusinessDiary(int daysAhead) throws Exception {
+        LocalDate start = LocalDate.now();
+        LocalDate end = start.plusDays(daysAhead);
+        List<DiaryItem> out = new ArrayList<>();
+        JSONArray list = arr(new JSONObject(get(BASE
+                        + "/plenary.asmx/GetBusinessDiary_JSON?startDate=" + start + "&endDate=" + end)),
+                "BusinessDiary", "DiaryItem");
+        for (int i = 0; i < list.length(); i++) {
+            JSONObject o = list.optJSONObject(i);
+            if (o == null) continue;
+            DiaryItem d = new DiaryItem();
+            d.eventType = o.optString("EventType");
+            d.organisationName = o.optString("OrganisationName");
+            d.startTime = shortClock(o.optString("StartTime"));
+            d.weekday = o.optString("Weekday");
+            d.locationRoom = o.optString("LocationRoom");
+            d.eventDate = o.optString("EventDate");
+            out.add(d);
+        }
+        return out;
+    }
+
+    /** Bills & motions currently in progress (recent Order Paper business). */
+    public List<Business> getBillsInProgress() throws Exception {
+        LocalDate end = LocalDate.now();
+        LocalDate start = end.minusDays(21);
+        List<Business> out = new ArrayList<>();
+        JSONArray list = arr(new JSONObject(get(BASE
+                        + "/plenary.asmx/GetPlenaryItemsPlenaryDate_JSON?startDate=" + start + "&endDate=" + end)),
+                "PlenaryList", "Plenary");
+        for (int i = 0; i < list.length(); i++) {
+            JSONObject o = list.optJSONObject(i);
+            if (o == null) continue;
+            String title = o.optString("Title");
+            String type = o.optString("PlenaryType");
+            String text = clean(o.optString("Text"));
+            if (title == null || title.trim().isEmpty()) continue;
+            boolean relevant = (text != null && !text.isEmpty())
+                    || type.toLowerCase().contains("motion")
+                    || title.toLowerCase().contains("bill")
+                    || title.toLowerCase().contains("stage");
+            if (!relevant) continue;
+            Business b = new Business();
+            b.title = title.trim();
+            b.type = type;
+            b.text = text;
+            String pd = o.optString("PlenaryDate");
+            b.date = (pd != null && pd.length() >= 10) ? pd.substring(0, 10) : "";
+            out.add(b);
         }
         return out;
     }

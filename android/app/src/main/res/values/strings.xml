@@ -2,6 +2,9 @@
 <resources>
     <string name="app_name">Commons Bell</string>
     <string name="update">Update</string>
+    <string name="your_area">Your area:</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_area">My Area</string>
     <string name="your_mlas">Your MLAs</string>
     <string name="recent_votes">Recent votes</string>
     <string name="recent_statements">Recent statements</string>
