@@ -64,6 +64,7 @@ public class MainActivity extends Activity {
 
     private DataFetcher.Snapshot currentSnapshot;
     private Map<String, MemberBio.Info> memberBio;
+    private Map<String, int[]> attendance;
 
     private final List<DataFetcher.Constituency> constituencies = new ArrayList<>();
     private boolean populatingSpinner = false;
@@ -536,9 +537,28 @@ public class MainActivity extends Activity {
         if (s.constituencyName != null && !s.constituencyName.isEmpty()) {
             currentAreaName = s.constituencyName;
         }
+        attendance = computeAttendance(s.votes);
         Map<String, List<DataFetcher.Statement>> byName = groupStatements(s.statements);
         renderMlas(s.mlas, byName);
         renderVotes(s.votes);
+    }
+
+    /** name -> {voted, total} across all divisions with per-member data. */
+    private Map<String, int[]> computeAttendance(List<DataFetcher.Vote> votes) {
+        Map<String, int[]> m = new HashMap<>();
+        if (votes == null) return m;
+        for (DataFetcher.Vote v : votes) {
+            for (DataFetcher.MyVote mv : v.myVotes) {
+                if (mv.vote == null) continue;
+                String u = mv.vote.toUpperCase();
+                if (u.contains("UNKNOWN")) continue;
+                int[] a = m.get(mv.name);
+                if (a == null) { a = new int[2]; m.put(mv.name, a); }
+                a[1]++;
+                if (!u.contains("ABSENT")) a[0]++;
+            }
+        }
+        return m;
     }
 
     // -------------------------------------------------------------------------
@@ -612,6 +632,12 @@ public class MainActivity extends Activity {
         }
         if (bio != null && bio.roleCurrent != null && !bio.roleCurrent.isEmpty()) {
             left.addView(tv(bio.roleCurrent, C_MUTED, 11f, Typeface.NORMAL));
+        }
+        int[] att = (attendance == null) ? null : attendance.get(m.name);
+        if (att != null && att[1] > 0) {
+            int pct = (int) Math.round(att[0] * 100.0 / att[1]);
+            left.addView(tv("Voted in " + att[0] + " of " + att[1] + " recent divisions (" + pct + "%)",
+                    C_MUTED, 11f, Typeface.NORMAL));
         }
         String last = mostRecentDate(stmts);
         if (!last.isEmpty()) {
