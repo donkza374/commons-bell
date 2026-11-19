@@ -142,6 +142,15 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content" />
 
+                        <Button
+                            android:id="@+id/cast_vote_btn"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="@string/cast_your_vote"
+                            android:textColor="#FFFFFF"
+                            android:backgroundTint="@color/accent"
+                            android:layout_marginTop="20dp" />
+
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"

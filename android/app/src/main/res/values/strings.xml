@@ -8,4 +8,5 @@
     <string name="your_mlas">Your MLAs</string>
     <string name="recent_votes">Recent votes</string>
     <string name="recent_statements">Recent statements</string>
+    <string name="cast_your_vote">Cast your vote</string>
 </resources>

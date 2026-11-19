@@ -1,0 +1,88 @@
+{
+  "bills": [
+    {
+      "keywords": ["Holiday Meal Payments", "holiday meal"],
+      "summary": "Extends free school meal support to cover school holidays for eligible children, so help isn't limited to term time.",
+      "benefits": ["Supporters say it tackles 'holiday hunger' and eases pressure on low-income families."],
+      "negatives": ["Critics question the ongoing cost and whether the money could be targeted more precisely."]
+    },
+    {
+      "keywords": ["Pension Schemes Bill", "Pension Schemes"],
+      "summary": "Updates Northern Ireland's pension regulation, largely to keep it in step with changes already made in the rest of the UK.",
+      "benefits": ["Supporters say it better protects pension savers and keeps rules aligned with Great Britain."],
+      "negatives": ["Critics say any divergence or added complexity could burden schemes operating across the UK."]
+    },
+    {
+      "keywords": ["Flags and Emblems", "Flags and Emblems Bill"],
+      "summary": "Sets out rules around the display of flags and emblems on public property and shared spaces.",
+      "benefits": ["Supporters say clear rules reduce tension and confusion about what can be displayed where."],
+      "negatives": ["Critics argue it is difficult to enforce neutrally and risks inflaming divisions."]
+    },
+    {
+      "keywords": ["Petroleum Exploration", "Petroleum Exploration and Licensing"],
+      "summary": "Removes the legal basis for onshore oil and gas exploration and fracking in Northern Ireland.",
+      "benefits": ["Supporters say it protects the environment and rules out fracking."],
+      "negatives": ["Critics argue it closes off a possible domestic energy and economic option."]
+    },
+    {
+      "keywords": ["School Uniforms", "School Uniforms (Trousers)"],
+      "summary": "Concerns school uniform rules and affordability, including requirements around items such as trousers.",
+      "benefits": ["Supporters say it can lower the cost of school uniforms for families."],
+      "negatives": ["Critics question whether legislation is needed beyond what schools already decide locally."]
+    },
+    {
+      "keywords": ["Irish-medium Education", "Irish-medium Education (Workforce"],
+      "summary": "Aims to grow the number of teachers qualified to teach through Irish, to meet demand for Irish-medium education.",
+      "benefits": ["Supporters say it secures the future of Irish-medium schooling."],
+      "negatives": ["Critics question the cost and prioritisation of one education sector over others."]
+    },
+    {
+      "keywords": ["Credit Unions (Amendment)", "Credit Unions"],
+      "summary": "Updates the rules governing credit unions in Northern Ireland.",
+      "benefits": ["Supporters say it lets credit unions offer more services and grow."],
+      "negatives": ["Critics say any widening of financial services needs strong member protections."]
+    },
+    {
+      "keywords": ["Age Discrimination", "Age Discrimination (Goods"],
+      "summary": "Extends age-discrimination protections to goods, facilities and services, beyond the workplace.",
+      "benefits": ["Supporters say it ends unfair treatment of people purely because of their age."],
+      "negatives": ["Critics worry about the compliance burden on businesses and unclear exemptions."]
+    },
+    {
+      "keywords": ["Tree Protection", "Tree Protection Bill"],
+      "summary": "Strengthens protection for trees, including rules against unjustified felling.",
+      "benefits": ["Supporters say it protects green spaces and helps tackle pollution."],
+      "negatives": ["Critics worry about the impact on development and on landowner rights."]
+    },
+    {
+      "keywords": ["Water, Sustainable Drainage", "Sustainable Drainage"],
+      "summary": "Updates rules on water management, sustainable drainage and flood management in Northern Ireland.",
+      "benefits": ["Supporters say it improves flood resilience as the climate changes."],
+      "negatives": ["Critics question implementation cost and whether drainage rules could delay building."]
+    },
+    {
+      "keywords": ["Maternity Services", "Maternity Services in the Southern"],
+      "summary": "Concerns the temporary withdrawal of maternity services at Daisy Hill Hospital and the future of maternity care in the Southern Trust.",
+      "benefits": ["Supporters of the motion want services restored so families aren't forced to travel further."],
+      "negatives": ["Opponents point to staffing shortages that can make safe, immediate restoration difficult."]
+    },
+    {
+      "keywords": ["All-Island Tourism", "Island Tourism"],
+      "summary": "Calls for coordinated action to unlock the potential of tourism across the island of Ireland.",
+      "benefits": ["Supporters say it grows the visitor economy and supports jobs."],
+      "negatives": ["Critics question the focus on cross-border coordination over other priorities."]
+    },
+    {
+      "keywords": ["BBC Northern Ireland", "Cuts to BBC"],
+      "summary": "Concerns proposed cuts to BBC Northern Ireland services and their impact on local news and programming.",
+      "benefits": ["Supporters say local programming is vital to Northern Ireland's media and identity."],
+      "negatives": ["Opponents argue the BBC must live within its budget like any other service."]
+    },
+    {
+      "keywords": ["Early Removal Scheme", "Foreign National Offenders"],
+      "summary": "Concerns the early removal scheme for foreign national offenders and a proposed expansion of it.",
+      "benefits": ["Supporters say early removal reduces prison costs and population."],
+      "negatives": ["Critics raise concerns about fairness and whether public safety is fully protected."]
+    }
+  ]
+}

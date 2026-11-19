@@ -38,6 +38,9 @@ public class DataFetcher {
         public String name;
         public String party;
         public String profileUrl;
+        public String photoUrl;   // https portrait
+        public String email;
+        public String phone;
     }
 
     public static class MyVote {
@@ -224,6 +227,49 @@ public class DataFetcher {
         return out;
     }
 
+    /** Enrich MLAs with photo URLs + contact details (each fetched in one call). */
+    private void enrichMlas(List<Mla> mlas) {
+        // photos (all members, single call)
+        try {
+            JSONArray all = arr(new JSONObject(get(BASE + "/members.asmx/GetAllMembers_JSON")),
+                    "AllMembersList", "Member");
+            Map<String, String> photos = new HashMap<>();
+            for (int i = 0; i < all.length(); i++) {
+                JSONObject o = all.optJSONObject(i);
+                if (o == null) continue;
+                String pid = String.valueOf(o.opt("PersonId"));
+                String url = o.optString("MemberImgUrl");
+                if (!pid.isEmpty() && url != null && !url.isEmpty()) {
+                    photos.put(pid, url.replace("http://", "https://"));
+                }
+            }
+            for (Mla m : mlas) m.photoUrl = photos.get(m.personId);
+        } catch (Exception ignore) { }
+
+        // contact details (all members, single call)
+        try {
+            JSONArray all = arr(new JSONObject(get(BASE + "/members.asmx/GetAllMemberContactDetails_JSON")),
+                    "AllMembersList", "Member");
+            for (int i = 0; i < all.length(); i++) {
+                JSONObject o = all.optJSONObject(i);
+                if (o == null) continue;
+                String pid = String.valueOf(o.opt("PersonId"));
+                for (Mla m : mlas) {
+                    if (!pid.equals(m.personId)) continue;
+                    String email = o.optString("EmaiAddress");
+                    if (email.trim().isEmpty()) email = o.optString("EmailAddress");
+                    if ((m.email == null || m.email.isEmpty()) && !email.trim().isEmpty()) {
+                        m.email = email.trim();
+                    }
+                    String phone = o.optString("TelephoneNumber");
+                    if ((m.phone == null || m.phone.isEmpty()) && !phone.trim().isEmpty()) {
+                        m.phone = phone.trim();
+                    }
+                }
+            }
+        } catch (Exception ignore) { }
+    }
+
     // --- high-level fetch ---------------------------------------------------
     public Snapshot fetch(int constituencyId) throws Exception {
         Snapshot snap = new Snapshot();
@@ -261,6 +307,7 @@ public class DataFetcher {
             snap.mlas.add(mla);
             personIds.add(mla.personId);
         }
+        enrichMlas(snap.mlas);
 
         // votes (last 45 days)
         LocalDate end = LocalDate.now();
@@ -480,6 +527,9 @@ public class DataFetcher {
                 o.put("name", m.name);
                 o.put("party", m.party);
                 o.put("profileUrl", m.profileUrl);
+                o.put("photoUrl", m.photoUrl);
+                o.put("email", m.email);
+                o.put("phone", m.phone);
                 mlas.put(o);
             }
             root.put("mlas", mlas);
@@ -544,6 +594,9 @@ public class DataFetcher {
                     m.name = o.optString("name");
                     m.party = o.optString("party");
                     m.profileUrl = o.optString("profileUrl");
+                    m.photoUrl = o.optString("photoUrl");
+                    m.email = o.optString("email");
+                    m.phone = o.optString("phone");
                     s.mlas.add(m);
                 }
             }

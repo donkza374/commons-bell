@@ -4,6 +4,8 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -19,6 +21,7 @@ import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
@@ -29,6 +32,7 @@ import androidx.work.ExistingPeriodicWorkPolicy;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
 
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,7 +59,11 @@ public class MainActivity extends Activity {
     private View areaPage;
     private TextView navHome;
     private TextView navArea;
+    private Button castVoteBtn;
     private String currentAreaName = "North Antrim";
+
+    private DataFetcher.Snapshot currentSnapshot;
+    private Map<String, MemberBio.Info> memberBio;
 
     private final List<DataFetcher.Constituency> constituencies = new ArrayList<>();
     private boolean populatingSpinner = false;
@@ -84,6 +92,9 @@ public class MainActivity extends Activity {
         areaPage = findViewById(R.id.area_page);
         navHome = findViewById(R.id.nav_home);
         navArea = findViewById(R.id.nav_area);
+        castVoteBtn = findViewById(R.id.cast_vote_btn);
+
+        memberBio = MemberBio.load(this);
 
         currentConstituencyId = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .getInt(KEY_CONSTITUENCY, DataFetcher.DEFAULT_CONSTITUENCY_ID);
@@ -129,6 +140,11 @@ public class MainActivity extends Activity {
         navArea.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { showArea(); }
         });
+
+        castVoteBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { openCastVote(); }
+        });
+
         showHome();
         loadHomeData();
     }
@@ -272,6 +288,16 @@ public class MainActivity extends Activity {
         navHome.setTypeface(Typeface.DEFAULT, homeActive ? Typeface.BOLD : Typeface.NORMAL);
         navArea.setTextColor(homeActive ? C_MUTED : C_ACCENT);
         navArea.setTypeface(Typeface.DEFAULT, homeActive ? Typeface.NORMAL : Typeface.BOLD);
+    }
+
+    private void openCastVote() {
+        DataFetcher.Snapshot s = currentSnapshot;
+        if (s == null) s = Cache.load(this);
+        Intent i = new Intent(this, VoteActivity.class);
+        if (s != null) {
+            i.putExtra("snapshot", DataFetcher.snapshotToJson(s).toString());
+        }
+        startActivity(i);
     }
 
     // -------------------------------------------------------------------------
@@ -442,14 +468,52 @@ public class MainActivity extends Activity {
         if (!sub.isEmpty()) left.addView(tv(sub, C_MUTED, 12f, Typeface.NORMAL));
         header.addView(left);
 
-        if (b.text != null && !b.text.isEmpty()) {
+        final BillKnowledge.BillInfo bi = BillKnowledge.lookup(this,
+                (b.title != null && !b.title.isEmpty()) ? b.title : b.text);
+        boolean hasBody = (b.text != null && !b.text.isEmpty()) || bi != null;
+
+        if (hasBody) {
             final TextView arrow = tv("▸", C_MUTED, 16f, Typeface.BOLD);
             header.addView(arrow);
             card.addView(header);
-            final TextView body = tv(truncate(b.text, 400), C_INK, 13f, Typeface.NORMAL);
+            final LinearLayout body = new LinearLayout(this);
+            body.setOrientation(LinearLayout.VERTICAL);
             body.setVisibility(View.GONE);
             body.setPadding(dp(4), dp(8), dp(4), 0);
+
+            if (bi != null) {
+                TextView h = tv("BILL FINE PRINT", C_MUTED, 11f, Typeface.BOLD);
+                h.setPadding(0, 0, 0, dp(4));
+                body.addView(h);
+                if (bi.summary != null && !bi.summary.isEmpty()) {
+                    body.addView(tv(bi.summary, C_INK, 13f, Typeface.NORMAL));
+                }
+                if (bi.benefits != null) {
+                    for (String s : bi.benefits) {
+                        if (s != null && !s.isEmpty()) {
+                            TextView t = tv("• " + s, Color.parseColor("#15803D"), 12f, Typeface.NORMAL);
+                            t.setPadding(0, dp(4), 0, 0);
+                            body.addView(t);
+                        }
+                    }
+                }
+                if (bi.negatives != null) {
+                    for (String s : bi.negatives) {
+                        if (s != null && !s.isEmpty()) {
+                            TextView t = tv("• " + s, Color.parseColor("#B91C1C"), 12f, Typeface.NORMAL);
+                            t.setPadding(0, dp(4), 0, 0);
+                            body.addView(t);
+                        }
+                    }
+                }
+            }
+            if (b.text != null && !b.text.isEmpty()) {
+                TextView raw = tv(truncate(b.text, 400), C_MUTED, 12f, Typeface.NORMAL);
+                raw.setPadding(0, dp(6), 0, 0);
+                body.addView(raw);
+            }
             card.addView(body);
+
             final boolean[] open = {false};
             header.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
@@ -468,6 +532,7 @@ public class MainActivity extends Activity {
     // Rendering
     // -------------------------------------------------------------------------
     private void render(DataFetcher.Snapshot s) {
+        currentSnapshot = s;
         if (s.constituencyName != null && !s.constituencyName.isEmpty()) {
             currentAreaName = s.constituencyName;
         }
@@ -521,11 +586,20 @@ public class MainActivity extends Activity {
                                       final List<DataFetcher.Statement> stmts) {
         LinearLayout card = card();
         int pc = partyColor(m.party);
+        final MemberBio.Info bio = (memberBio == null) ? null : memberBio.get(m.personId);
 
-        // header row (tap to expand/collapse statements)
+        // header row (tap to expand/collapse)
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
+
+        if (m.photoUrl != null && !m.photoUrl.isEmpty()) {
+            ImageView photoView = photo(m.photoUrl);
+            LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(dp(54), dp(54));
+            plp.rightMargin = dp(12);
+            photoView.setLayoutParams(plp);
+            header.addView(photoView);
+        }
 
         LinearLayout left = new LinearLayout(this);
         left.setOrientation(LinearLayout.VERTICAL);
@@ -533,6 +607,12 @@ public class MainActivity extends Activity {
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         left.addView(tv(m.name, pc, 16f, Typeface.BOLD));
         left.addView(tv(m.party, pc, 12f, Typeface.BOLD));
+        if (bio != null && bio.memberSince != null && !bio.memberSince.isEmpty()) {
+            left.addView(tv(bio.memberSince, C_MUTED, 11f, Typeface.NORMAL));
+        }
+        if (bio != null && bio.roleCurrent != null && !bio.roleCurrent.isEmpty()) {
+            left.addView(tv(bio.roleCurrent, C_MUTED, 11f, Typeface.NORMAL));
+        }
         String last = mostRecentDate(stmts);
         if (!last.isEmpty()) {
             left.addView(tv("Last spoke " + formatDate(last), C_MUTED, 12f, Typeface.NORMAL));
@@ -543,15 +623,49 @@ public class MainActivity extends Activity {
         header.addView(arrow);
         card.addView(header);
 
-        // collapsible body: statements + profile link
+        // collapsible body: contact + bio + statements + profile link
         final LinearLayout body = new LinearLayout(this);
         body.setOrientation(LinearLayout.VERTICAL);
         body.setVisibility(View.GONE);
         body.setPadding(dp(4), dp(8), dp(4), dp(2));
 
+        if (bio != null && bio.career != null && !bio.career.isEmpty()) {
+            body.addView(tv("Before politics: " + bio.career, C_INK, 12f, Typeface.NORMAL));
+        }
+        if (bio != null && bio.previousRole != null && !bio.previousRole.isEmpty()) {
+            body.addView(tv("Previously: " + bio.previousRole, C_MUTED, 12f, Typeface.NORMAL));
+        }
+
+        if (m.email != null && !m.email.isEmpty()) {
+            TextView em = tv("✉  " + m.email, C_ACCENT, 12f, Typeface.BOLD);
+            em.setPadding(0, dp(6), 0, 0);
+            em.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    try {
+                        startActivity(new Intent(Intent.ACTION_SENDTO,
+                                Uri.parse("mailto:" + m.email)));
+                    } catch (Exception ignored) { }
+                }
+            });
+            body.addView(em);
+        }
+        if (m.phone != null && !m.phone.isEmpty()) {
+            TextView ph = tv("☎  " + m.phone, C_ACCENT, 12f, Typeface.BOLD);
+            ph.setPadding(0, dp(6), 0, 0);
+            ph.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    try {
+                        startActivity(new Intent(Intent.ACTION_DIAL,
+                                Uri.parse("tel:" + m.phone.replaceAll("[^0-9+]", ""))));
+                    } catch (Exception ignored) { }
+                }
+            });
+            body.addView(ph);
+        }
+
         if (m.profileUrl != null && !m.profileUrl.isEmpty()) {
             TextView prof = tv("Official profile ↗", C_ACCENT, 12f, Typeface.BOLD);
-            prof.setPadding(0, 0, 0, dp(4));
+            prof.setPadding(0, dp(6), 0, dp(4));
             prof.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) { open(m.profileUrl); }
             });
@@ -676,7 +790,8 @@ public class MainActivity extends Activity {
                 || (v.outcome != null && !v.outcome.isEmpty())
                 || (v.totalAyes != null && !v.totalAyes.isEmpty())
                 || (v.totalNoes != null && !v.totalNoes.isEmpty())
-                || (v.totalAbstentions != null && !v.totalAbstentions.isEmpty());
+                || (v.totalAbstentions != null && !v.totalAbstentions.isEmpty())
+                || BillKnowledge.lookup(this, v.subject) != null;
     }
 
     private LinearLayout buildVoteInfo(DataFetcher.Vote v) {
@@ -692,7 +807,38 @@ public class MainActivity extends Activity {
         lp.topMargin = dp(6);
         b.setLayoutParams(lp);
 
-        if (v.description != null && !v.description.isEmpty()) {
+        BillKnowledge.BillInfo bi = BillKnowledge.lookup(this, v.subject);
+        if (bi != null) {
+            TextView h = tv("BILL FINE PRINT", C_MUTED, 11f, Typeface.BOLD);
+            h.setPadding(0, 0, 0, dp(4));
+            b.addView(h);
+            if (bi.summary != null && !bi.summary.isEmpty()) {
+                b.addView(tv(bi.summary, C_INK, 13f, Typeface.NORMAL));
+            }
+            if (bi.benefits != null) {
+                for (String s : bi.benefits) {
+                    if (s != null && !s.isEmpty()) {
+                        TextView t = tv("• " + s, Color.parseColor("#15803D"), 12f, Typeface.NORMAL);
+                        t.setPadding(0, dp(4), 0, 0);
+                        b.addView(t);
+                    }
+                }
+            }
+            if (bi.negatives != null) {
+                for (String s : bi.negatives) {
+                    if (s != null && !s.isEmpty()) {
+                        TextView t = tv("• " + s, Color.parseColor("#B91C1C"), 12f, Typeface.NORMAL);
+                        t.setPadding(0, dp(4), 0, 0);
+                        b.addView(t);
+                    }
+                }
+            }
+            if (v.description != null && !v.description.isEmpty()) {
+                TextView full = tv(truncate(v.description, 400), C_MUTED, 12f, Typeface.NORMAL);
+                full.setPadding(0, dp(6), 0, 0);
+                b.addView(full);
+            }
+        } else if (v.description != null && !v.description.isEmpty()) {
             b.addView(tv(truncate(v.description, 420), C_INK, 13f, Typeface.NORMAL));
         }
         if (v.outcome != null && !v.outcome.isEmpty()) {
@@ -769,6 +915,34 @@ public class MainActivity extends Activity {
         lp.bottomMargin = dp(10);
         ll.setLayoutParams(lp);
         return ll;
+    }
+
+    /** Circular MLA portrait, loaded from the API on a background thread. */
+    private ImageView photo(String url) {
+        final ImageView iv = new ImageView(this);
+        iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setShape(GradientDrawable.OVAL);
+        bg.setColor(Color.parseColor("#E5E7EB"));
+        iv.setBackground(bg);
+        iv.setClipToOutline(true);
+        loadPhoto(url, iv);
+        return iv;
+    }
+
+    private void loadPhoto(final String url, final ImageView iv) {
+        new Thread(new Runnable() {
+            @Override public void run() {
+                try {
+                    final Bitmap bmp = BitmapFactory.decodeStream(new URL(url).openStream());
+                    runOnUiThread(new Runnable() {
+                        @Override public void run() {
+                            if (bmp != null) iv.setImageBitmap(bmp);
+                        }
+                    });
+                } catch (Exception ignored) { }
+            }
+        }).start();
     }
 
     private static String voteLabel(String v) {
