@@ -7,8 +7,12 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -46,6 +50,8 @@ public class MainActivity extends Activity {
     private LinearLayout votesContainer;
     private View homePage;
     private LinearLayout homeContainer;
+    private LinearLayout homeFeed;
+    private boolean bellRung = false;
     private View areaPage;
     private TextView navHome;
     private TextView navArea;
@@ -123,7 +129,7 @@ public class MainActivity extends Activity {
         navArea.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { showArea(); }
         });
-        showArea();
+        showHome();
         loadHomeData();
     }
 
@@ -272,9 +278,7 @@ public class MainActivity extends Activity {
     // Home page
     // -------------------------------------------------------------------------
     private void loadHomeData() {
-        if (homeContainer.getChildCount() == 0) {
-            homeContainer.addView(tv("Loading…", C_MUTED, 14f, Typeface.NORMAL));
-        }
+        showHomeLoading();
         new Thread(new Runnable() {
             @Override public void run() {
                 try {
@@ -286,7 +290,7 @@ public class MainActivity extends Activity {
                 } catch (final Exception e) {
                     runOnUiThread(new Runnable() {
                         @Override public void run() {
-                            renderHomeError("Couldn't reach the Assembly. Pull to retry.");
+                            renderHomeError("Couldn't reach the Assembly.");
                         }
                     });
                 }
@@ -294,57 +298,98 @@ public class MainActivity extends Activity {
         }).start();
     }
 
+    private void showHomeLoading() {
+        homeContainer.removeAllViews();
+        homeContainer.addView(buildBell());
+        ensureHomeFeed();
+        homeFeed.addView(tv("Loading…", C_MUTED, 14f, Typeface.NORMAL));
+    }
+
     private void renderHome(List<DataFetcher.DiaryItem> diary, List<DataFetcher.Business> bills) {
         homeContainer.removeAllViews();
-        homeContainer.addView(buildAreaNavCard());
+        homeContainer.addView(buildBell());
+        ensureHomeFeed();
 
-        homeContainer.addView(sectionHeader("WHAT'S ON TODAY"));
+        homeFeed.addView(sectionHeader("WHAT'S ON TODAY"));
         if (diary == null || diary.isEmpty()) {
-            homeContainer.addView(tv("Nothing scheduled in the coming days.", C_MUTED, 14f, Typeface.NORMAL));
+            homeFeed.addView(tv("Nothing scheduled in the coming days.", C_MUTED, 14f, Typeface.NORMAL));
         } else {
             int shown = 0;
             for (DataFetcher.DiaryItem d : diary) {
                 if (shown++ >= 15) break;
-                homeContainer.addView(buildDiaryCard(d));
+                homeFeed.addView(buildDiaryCard(d));
             }
         }
 
-        homeContainer.addView(sectionHeader("BILLS IN PROGRESS"));
+        homeFeed.addView(sectionHeader("BILLS IN PROGRESS"));
         if (bills == null || bills.isEmpty()) {
-            homeContainer.addView(tv("No bills in progress found.", C_MUTED, 14f, Typeface.NORMAL));
+            homeFeed.addView(tv("No bills in progress found.", C_MUTED, 14f, Typeface.NORMAL));
         } else {
             int shown = 0;
             for (DataFetcher.Business b : bills) {
                 if (shown++ >= 12) break;
-                homeContainer.addView(buildBusinessCard(b));
+                homeFeed.addView(buildBusinessCard(b));
             }
         }
     }
 
     private void renderHomeError(String msg) {
         homeContainer.removeAllViews();
-        homeContainer.addView(buildAreaNavCard());
-        homeContainer.addView(tv(msg, C_MUTED, 14f, Typeface.NORMAL));
+        homeContainer.addView(buildBell());
+        ensureHomeFeed();
+        homeFeed.addView(tv(msg, C_MUTED, 14f, Typeface.NORMAL));
+        TextView retry = tv("Tap to retry", C_ACCENT, 13f, Typeface.BOLD);
+        retry.setPadding(0, dp(10), 0, 0);
+        retry.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { loadHomeData(); }
+        });
+        homeFeed.addView(retry);
     }
 
-    private LinearLayout buildAreaNavCard() {
-        final LinearLayout card = card();
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout left = new LinearLayout(this);
-        left.setOrientation(LinearLayout.VERTICAL);
-        left.setLayoutParams(new LinearLayout.LayoutParams(
-                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        left.addView(tv("YOUR AREA", C_MUTED, 11f, Typeface.BOLD));
-        left.addView(tv(currentAreaName, C_INK, 16f, Typeface.BOLD));
-        row.addView(left);
-        row.addView(tv("→", C_ACCENT, 20f, Typeface.BOLD));
-        card.addView(row);
-        card.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { showArea(); }
+    private void ensureHomeFeed() {
+        homeFeed = new LinearLayout(this);
+        homeFeed.setOrientation(LinearLayout.VERTICAL);
+        homeFeed.setVisibility(bellRung ? View.VISIBLE : View.GONE);
+        homeContainer.addView(homeFeed);
+    }
+
+    private LinearLayout buildBell() {
+        LinearLayout wrap = new LinearLayout(this);
+        wrap.setOrientation(LinearLayout.VERTICAL);
+        wrap.setGravity(Gravity.CENTER_HORIZONTAL);
+        wrap.setPadding(dp(8), dp(28), dp(8), dp(24));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.bottomMargin = dp(8);
+        wrap.setLayoutParams(lp);
+
+        TextView bell = tv("🔔", C_ACCENT, 64f, Typeface.NORMAL);
+        bell.setGravity(Gravity.CENTER);
+        bell.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { ringBell(); }
         });
-        return card;
+        wrap.addView(bell);
+
+        TextView hint = tv("Tap the bell", C_MUTED, 14f, Typeface.NORMAL);
+        hint.setGravity(Gravity.CENTER);
+        wrap.addView(hint);
+        return wrap;
+    }
+
+    private void ringBell() {
+        try {
+            Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+            if (v != null && v.hasVibrator()) {
+                v.vibrate(VibrationEffect.createOneShot(180, VibrationEffect.DEFAULT_AMPLITUDE));
+            }
+        } catch (Exception ignore) { }
+        try {
+            Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+            Ringtone r = RingtoneManager.getRingtone(this, sound);
+            if (r != null) r.play();
+        } catch (Exception ignore) { }
+        bellRung = true;
+        if (homeFeed != null) homeFeed.setVisibility(View.VISIBLE);
     }
 
     private TextView sectionHeader(String text) {
