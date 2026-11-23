@@ -1,8 +1,9 @@
 # Commons Bell — Roadmap
 
 > **Status: ACTIVE.** Shipped through **v0.6.0** (bell home screen, bill fine print,
-> MLA photos/history/contact/turnout, cast-your-vote). A vote-log + party recommendation
-> (v0.7.0) is committed locally but not yet built/released.
+> MLA photos/history/contact/turnout, cast-your-vote). The v0.7.0 batch is **committed locally
+> but not yet built/released**: bell dong, "load more bills", postcode lookup, share/compare
+> votes, and division notifications (see below).
 
 ## Product goals
 
@@ -151,12 +152,11 @@ Reuses sections 3 (bill fine print), the existing vote badges, and Hansard.
 
 - **Scotland / Wales / England** expansion.
 - **Westminster MPs** (e.g. Jim Allister, North Antrim).
-- **Postcode lookup** (auto-detect constituency from postcode).
-- **Search** (find an MLA by name/keyword).
+- ~~**Postcode lookup** (auto-detect constituency from postcode)~~ — _done; bundled static mapping (best-effort)._
 - **Watchlist / follow** specific MLAs or topics.
 - **Party seat breakdown** visual.
 - **"How Stormont works"** explainers.
-- **Favourites + share** a vote/statement.
+- ~~**Favourites + share** a vote/statement~~ — _done; per-vote + all-votes share with a compare code._
 - **In-app "check for updates"** link and/or **Play Store** release.
 
 ---
