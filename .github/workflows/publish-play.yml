@@ -1,0 +1,60 @@
+name: Publish to Google Play
+
+# This workflow uploads a signed App Bundle (AAB) to Google Play.
+# It is independent from `build-apk.yml` (which builds APK + AAB on every push to main).
+# It only runs when a version tag is pushed (or manually), AND only AFTER the
+# GOOGLE_PLAY_SERVICE_ACCOUNT_JSON secret has been added. Until then, it is a no-op.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON != '' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Install Android SDK 35 (if needed)
+        run: |
+          SDKMGMT="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ -x "$SDKMGMT" ]; then
+            yes | "$SDKMGMT" --licenses >/dev/null 2>&1 || true
+            "$SDKMGMT" "platforms;android-35" "build-tools;35.0.0" >/dev/null 2>&1 || true
+          fi
+
+      - name: Decode signing keystore
+        run: echo "${{ secrets.COMMONS_BELL_KEYSTORE_B64 }}" | base64 -d > keystore.jks
+        working-directory: android/app
+
+      - name: Build release AAB
+        run: gradle bundleRelease
+        working-directory: android
+        env:
+          KEYSTORE_PATH: ${{ github.workspace }}/android/app/keystore.jks
+          COMMONS_BELL_KEYSTORE_PASS: ${{ secrets.COMMONS_BELL_KEYSTORE_PASS }}
+          COMMONS_BELL_KEY_ALIAS: ${{ secrets.COMMONS_BELL_KEY_ALIAS }}
+
+      - name: Upload AAB to Google Play (Internal testing)
+        uses: r0adkll/upload-google-play@v1.1.3
+        with:
+          serviceAccountJson: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.commonsbell
+          releaseFiles: android/app/build/outputs/bundle/release/*.aab
+          track: internal
+          status: completed
