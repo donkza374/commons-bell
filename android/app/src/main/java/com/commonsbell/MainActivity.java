@@ -41,8 +41,10 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends Activity {
@@ -50,6 +52,9 @@ public class MainActivity extends Activity {
     private static final String PREFS = "commonsbell";
     private static final String KEY_CONSTITUENCY = "constituency_id";
     private static final String KEY_REGION = "region";
+    private static final String KEY_DARK = "dark";
+    private static final String KEY_WATCHLIST_MLAS = "watchlist_mlas";
+    private static final String KEY_WATCHLIST_BILLS = "watchlist_bills";
 
     private TextView statusView;
     private ProgressBar progress;
@@ -80,6 +85,23 @@ public class MainActivity extends Activity {
     private View navBar;
     private int region = 0; // 0 = NI, 1 = Westminster, 2 = Scottish Parliament, 3 = Senedd
     private String currentAreaName = "North Antrim";
+    private View searchPage;
+    private LinearLayout searchContainer;
+    private View settingsPage;
+    private LinearLayout settingsContainer;
+    private TextView navSearch;
+    private TextView navSettings;
+    private View root;
+    private View pickerRow;
+    private View postcodeRow;
+    private EditText searchInput;
+    private LinearLayout searchResultsContainer;
+    private LinearLayout watchlistContainer;
+    private final List<DataFetcher.Mla> allMembers = new ArrayList<>();
+    private boolean allMembersLoaded = false;
+    private Set<String> watchlistMlas = new HashSet<>();
+    private Set<String> watchlistBills = new HashSet<>();
+    private boolean dark = false;
 
     private DataFetcher.Snapshot currentSnapshot;
     private Map<String, MemberBio.Info> memberBio;
@@ -114,6 +136,26 @@ public class MainActivity extends Activity {
         regionPlaceholder = findViewById(R.id.region_placeholder);
         placeholderText = findViewById(R.id.region_placeholder_text);
         navBar = findViewById(R.id.nav_bar);
+        searchPage = findViewById(R.id.search_page);
+        searchContainer = findViewById(R.id.search_container);
+        settingsPage = findViewById(R.id.settings_page);
+        settingsContainer = findViewById(R.id.settings_container);
+        navSearch = findViewById(R.id.nav_search);
+        navSettings = findViewById(R.id.nav_settings);
+        root = findViewById(R.id.root);
+        pickerRow = findViewById(R.id.picker_row);
+        postcodeRow = findViewById(R.id.postcode_row);
+
+        // theme, watchlist, and secondary pages
+        dark = getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_DARK, false);
+        Ui.setDark(dark);
+        applyTheme();
+        watchlistMlas = new HashSet<>(getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getStringSet(KEY_WATCHLIST_MLAS, new HashSet<String>()));
+        watchlistBills = new HashSet<>(getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getStringSet(KEY_WATCHLIST_BILLS, new HashSet<String>()));
+        buildSearchPage();
+        buildSettingsPage();
 
         memberBio = MemberBio.load(this);
 
@@ -157,6 +199,12 @@ public class MainActivity extends Activity {
         });
         navArea.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { showArea(); }
+        });
+        navSearch.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { showSearch(); }
+        });
+        navSettings.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { showSettings(); }
         });
 
         castVoteBtn.setOnClickListener(new View.OnClickListener() {
@@ -330,8 +378,8 @@ public class MainActivity extends Activity {
 
     private void setStatus(String msg, boolean error) {
         statusView.setText(msg);
-        statusView.setTextColor(error ? Color.parseColor("#B91C1C") : Ui.ACCENT);
-        statusView.setBackgroundColor(error ? Color.parseColor("#FDECEC") : Color.parseColor("#E6F0EF"));
+        statusView.setTextColor(error ? Ui.NO : Ui.ACCENT);
+        statusView.setBackgroundColor(error ? Ui.ERROR_BG : Ui.ACCENT_SOFT);
     }
 
     // -------------------------------------------------------------------------
@@ -365,13 +413,34 @@ public class MainActivity extends Activity {
     private void showHome() {
         homePage.setVisibility(View.VISIBLE);
         areaPage.setVisibility(View.GONE);
-        setNav(true);
+        searchPage.setVisibility(View.GONE);
+        settingsPage.setVisibility(View.GONE);
+        setNav(0);
     }
 
     private void showArea() {
         homePage.setVisibility(View.GONE);
         areaPage.setVisibility(View.VISIBLE);
-        setNav(false);
+        searchPage.setVisibility(View.GONE);
+        settingsPage.setVisibility(View.GONE);
+        setNav(1);
+    }
+
+    private void showSearch() {
+        homePage.setVisibility(View.GONE);
+        areaPage.setVisibility(View.GONE);
+        searchPage.setVisibility(View.VISIBLE);
+        settingsPage.setVisibility(View.GONE);
+        ensureAllMembersLoaded();
+        setNav(2);
+    }
+
+    private void showSettings() {
+        homePage.setVisibility(View.GONE);
+        areaPage.setVisibility(View.GONE);
+        searchPage.setVisibility(View.GONE);
+        settingsPage.setVisibility(View.VISIBLE);
+        setNav(3);
     }
 
     private void applyRegion() {
@@ -385,6 +454,8 @@ public class MainActivity extends Activity {
         } else {
             homePage.setVisibility(View.GONE);
             areaPage.setVisibility(View.GONE);
+            searchPage.setVisibility(View.GONE);
+            settingsPage.setVisibility(View.GONE);
             placeholderText.setText(regionName() + " is coming soon.\n\nPick NI Assembly to browse Stormont for now.");
         }
     }
@@ -398,11 +469,33 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void setNav(boolean homeActive) {
-        navHome.setTextColor(homeActive ? Ui.ACCENT : Ui.MUTED);
-        navHome.setTypeface(Typeface.DEFAULT, homeActive ? Typeface.BOLD : Typeface.NORMAL);
-        navArea.setTextColor(homeActive ? Ui.MUTED : Ui.ACCENT);
-        navArea.setTypeface(Typeface.DEFAULT, homeActive ? Typeface.NORMAL : Typeface.BOLD);
+    private void setNav(int page) {
+        setNavItem(navHome, page == 0);
+        setNavItem(navArea, page == 1);
+        setNavItem(navSearch, page == 2);
+        setNavItem(navSettings, page == 3);
+    }
+
+    private void setNavItem(TextView t, boolean active) {
+        t.setTextColor(active ? Ui.ACCENT : Ui.MUTED);
+        t.setTypeface(Typeface.DEFAULT, active ? Typeface.BOLD : Typeface.NORMAL);
+    }
+
+    private void applyTheme() {
+        root.setBackgroundColor(Ui.BG);
+        navBar.setBackgroundColor(Ui.CARD);
+        pickerRow.setBackgroundColor(Ui.CARD);
+        postcodeRow.setBackgroundColor(Ui.CARD);
+    }
+
+    private void rerenderAll() {
+        applyTheme();
+        buildSettingsPage();
+        buildSearchPage();
+        if (currentSnapshot != null) render(currentSnapshot);
+        loadHomeData();
+        if (upcomingMode != 0) loadUpcoming();
+        setStatus(statusView.getText().toString(), false);
     }
 
     private void openCastVote() {
@@ -538,6 +631,11 @@ public class MainActivity extends Activity {
         homeContainer.addView(buildBell());
         ensureHomeFeed();
 
+        watchlistContainer = new LinearLayout(this);
+        watchlistContainer.setOrientation(LinearLayout.VERTICAL);
+        homeFeed.addView(watchlistContainer);
+        fillWatchlist();
+
         homeFeed.addView(sectionHeader("WHAT'S ON TODAY"));
         if (diary == null || diary.isEmpty()) {
             homeFeed.addView(tv("Nothing scheduled in the coming days.", Ui.MUTED, 14f, Typeface.NORMAL));
@@ -579,7 +677,7 @@ public class MainActivity extends Activity {
             more.setText("Load more bills (" + remaining + " more)");
             more.setTextColor(Ui.ACCENT);
             GradientDrawable bg = new GradientDrawable();
-            bg.setColor(Color.WHITE);
+            bg.setColor(Ui.CARD);
             bg.setStroke(dp(1), Ui.ACCENT);
             bg.setCornerRadius(dp(10));
             more.setBackground(bg);
@@ -746,6 +844,14 @@ public class MainActivity extends Activity {
         }
         header.addView(left);
 
+        final String billKey = b.title;
+        final TextView star = tv(watchlistBills.contains(billKey) ? "★" : "☆", Ui.ACCENT, 18f, Typeface.BOLD);
+        star.setPadding(dp(10), 0, dp(4), 0);
+        star.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { toggleWatchBill(billKey, star); }
+        });
+        header.addView(star);
+
         boolean hasBody = (b.text != null && !b.text.isEmpty()) || bi != null;
 
         if (hasBody) {
@@ -788,6 +894,12 @@ public class MainActivity extends Activity {
                 raw.setPadding(0, dp(6), 0, 0);
                 body.addView(raw);
             }
+            TextView detail = tv("Open full detail ↗", Ui.ACCENT, 12f, Typeface.BOLD);
+            detail.setPadding(0, dp(8), 0, 0);
+            detail.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { openBill(b.title, b.type, b.date, b.text); }
+            });
+            body.addView(detail);
             card.addView(body);
 
             final boolean[] open = {false};
@@ -919,6 +1031,13 @@ public class MainActivity extends Activity {
             left.addView(tv("Last spoke " + Ui.formatDate(last), Ui.MUTED, 12f, Typeface.NORMAL));
         }
         header.addView(left);
+
+        final TextView star = tv(watchlistMlas.contains(m.name) ? "★" : "☆", Ui.ACCENT, 20f, Typeface.BOLD);
+        star.setPadding(dp(10), 0, dp(4), 0);
+        star.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { toggleWatchMla(m, star); }
+        });
+        header.addView(star);
 
         final TextView arrow = tv("▸", Ui.MUTED, 18f, Typeface.BOLD);
         header.addView(arrow);
@@ -1118,7 +1237,7 @@ public class MainActivity extends Activity {
         b.setOrientation(LinearLayout.VERTICAL);
         b.setPadding(dp(12), dp(10), dp(12), dp(10));
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.parseColor("#F6F7F9"));
+        bg.setColor(Ui.BG);
         bg.setCornerRadius(dp(8));
         b.setBackground(bg);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
@@ -1320,7 +1439,7 @@ public class MainActivity extends Activity {
         blp.topMargin = dp(6);
         bar.setLayoutParams(blp);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.parseColor("#E5E7EB"));
+        bg.setColor(Ui.LINE);
         bg.setCornerRadius(dp(4));
         bar.setBackground(bg);
         bar.setClipToOutline(true);
@@ -1349,7 +1468,7 @@ public class MainActivity extends Activity {
         track.setLayoutParams(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(6)));
         GradientDrawable tb = new GradientDrawable();
-        tb.setColor(Color.parseColor("#E5E7EB"));
+        tb.setColor(Ui.LINE);
         tb.setCornerRadius(dp(3));
         track.setBackground(tb);
         track.setClipToOutline(true);
@@ -1376,7 +1495,7 @@ public class MainActivity extends Activity {
         ll.setOrientation(LinearLayout.VERTICAL);
         ll.setPadding(dp(14), dp(12), dp(14), dp(12));
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.WHITE);
+        bg.setColor(Ui.CARD);
         bg.setCornerRadius(dp(12));
         bg.setStroke(dp(1), Ui.LINE);
         ll.setBackground(bg);
@@ -1393,7 +1512,7 @@ public class MainActivity extends Activity {
         iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
         GradientDrawable bg = new GradientDrawable();
         bg.setShape(GradientDrawable.OVAL);
-        bg.setColor(Color.parseColor("#E5E7EB"));
+        bg.setColor(Ui.LINE);
         iv.setBackground(bg);
         iv.setClipToOutline(true);
         loadPhoto(url, iv);
@@ -1429,5 +1548,308 @@ public class MainActivity extends Activity {
         long h = m / 60;
         if (h < 24) return h + " hr ago";
         return (h / 24) + " days ago";
+    }
+
+    // ---------------------------------------------------------------------
+    // Search + Glossary (Search tab)
+    // ---------------------------------------------------------------------
+    private void buildSearchPage() {
+        searchContainer.removeAllViews();
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        searchInput = new EditText(this);
+        searchInput.setHint("Name, party or bill…");
+        searchInput.setSingleLine(true);
+        searchInput.setTextColor(Ui.INK);
+        searchInput.setHintTextColor(Ui.MUTED);
+        searchInput.setLayoutParams(new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        searchInput.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override public boolean onEditorAction(TextView tv, int actionId, KeyEvent event) {
+                if (actionId == EditorInfo.IME_ACTION_SEARCH || actionId == EditorInfo.IME_ACTION_DONE) {
+                    doSearch();
+                    return true;
+                }
+                return false;
+            }
+        });
+        row.addView(searchInput);
+
+        Button go = accentButton("Search");
+        go.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { doSearch(); }
+        });
+        row.addView(go);
+        searchContainer.addView(row);
+
+        searchResultsContainer = new LinearLayout(this);
+        searchResultsContainer.setOrientation(LinearLayout.VERTICAL);
+        searchContainer.addView(searchResultsContainer);
+
+        searchContainer.addView(sectionHeader("GLOSSARY"));
+        for (Glossary.Term t : Glossary.all()) {
+            searchContainer.addView(buildGlossaryEntry(t));
+        }
+    }
+
+    private void ensureAllMembersLoaded() {
+        if (allMembersLoaded) return;
+        allMembersLoaded = true;
+        new Thread(new Runnable() {
+            @Override public void run() {
+                try {
+                    final List<DataFetcher.Mla> list = new DataFetcher().getAllMembers();
+                    runOnUiThread(new Runnable() {
+                        @Override public void run() {
+                            allMembers.clear();
+                            allMembers.addAll(list);
+                            fillWatchlist();
+                        }
+                    });
+                } catch (Exception ignored) { }
+            }
+        }).start();
+    }
+
+    private void doSearch() {
+        String q = searchInput == null ? "" : String.valueOf(searchInput.getText()).trim();
+        searchResultsContainer.removeAllViews();
+        if (q.isEmpty()) {
+            searchResultsContainer.addView(tv("Type a name, party or bill to search.",
+                    Ui.MUTED, 14f, Typeface.NORMAL));
+            return;
+        }
+        String lq = q.toLowerCase();
+        int found = 0;
+        for (DataFetcher.Mla m : allMembers) {
+            String hay = (m.name + " " + m.party).toLowerCase();
+            if (hay.contains(lq)) {
+                searchResultsContainer.addView(buildSearchResultMla(m));
+                found++;
+            }
+        }
+        if (currentSnapshot != null) {
+            for (DataFetcher.Vote v : currentSnapshot.votes) {
+                String s = v.subject == null ? "" : v.subject.toLowerCase();
+                if (s.contains(lq)) {
+                    searchResultsContainer.addView(
+                            buildSearchResultBill(v.subject, v.date, v.type, v.description));
+                    found++;
+                }
+            }
+        }
+        for (DataFetcher.Business b : homeBills) {
+            String hay = (b.title + " " + (b.text == null ? "" : b.text)).toLowerCase();
+            if (hay.contains(lq)) {
+                searchResultsContainer.addView(buildSearchResultBill(b.title, b.date, b.type, b.text));
+                found++;
+            }
+        }
+        if (found == 0) {
+            searchResultsContainer.addView(tv("No matches for \"" + q + "\".",
+                    Ui.MUTED, 14f, Typeface.NORMAL));
+        } else {
+            searchResultsContainer.addView(tv(found + " result" + (found == 1 ? "" : "s"),
+                    Ui.MUTED, 11f, Typeface.NORMAL));
+        }
+    }
+
+    private LinearLayout buildSearchResultMla(DataFetcher.Mla m) {
+        return buildMlaCard(m, Collections.<DataFetcher.Statement>emptyList());
+    }
+
+    private LinearLayout buildSearchResultBill(final String title, final String date,
+                                               final String type, final String text) {
+        LinearLayout c = card();
+        c.addView(tv(title, Ui.INK, 14f, Typeface.BOLD));
+        String sub = (type == null ? "" : type);
+        if (date != null && !date.isEmpty()) sub = sub + (sub.isEmpty() ? "" : " · ") + Ui.formatDate(date);
+        if (!sub.isEmpty()) c.addView(tv(sub, Ui.MUTED, 12f, Typeface.NORMAL));
+        TextView link = tv("Open detail ↗", Ui.ACCENT, 12f, Typeface.BOLD);
+        link.setPadding(0, dp(6), 0, 0);
+        link.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { openBill(title, type, date, text); }
+        });
+        c.addView(link);
+        return c;
+    }
+
+    private LinearLayout buildGlossaryEntry(final Glossary.Term t) {
+        LinearLayout c = card();
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        TextView title = tv(t.term, Ui.INK, 14f, Typeface.BOLD);
+        title.setLayoutParams(new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        header.addView(title);
+        final TextView arrow = tv("▸", Ui.MUTED, 15f, Typeface.BOLD);
+        header.addView(arrow);
+        c.addView(header);
+        final TextView body = tv(t.meaning, Ui.MUTED, 13f, Typeface.NORMAL);
+        body.setVisibility(View.GONE);
+        body.setPadding(0, dp(6), 0, 0);
+        c.addView(body);
+        final boolean[] open = {false};
+        header.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                open[0] = !open[0];
+                body.setVisibility(open[0] ? View.VISIBLE : View.GONE);
+                arrow.setText(open[0] ? "▾" : "▸");
+            }
+        });
+        return c;
+    }
+
+    private void openBill(String title, String type, String date, String text) {
+        Intent i = new Intent(this, BillActivity.class);
+        i.putExtra("title", title);
+        i.putExtra("type", type);
+        i.putExtra("date", date);
+        i.putExtra("text", text);
+        startActivity(i);
+    }
+
+    // ---------------------------------------------------------------------
+    // Settings tab
+    // ---------------------------------------------------------------------
+    private void buildSettingsPage() {
+        settingsContainer.removeAllViews();
+
+        settingsContainer.addView(sectionHeader("APPEARANCE"));
+        LinearLayout darkCard = card();
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        TextView label = tv("Dark mode", Ui.INK, 15f, Typeface.BOLD);
+        label.setLayoutParams(new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(label);
+        final Button toggle = accentButton(dark ? "On" : "Off");
+        toggle.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                dark = !dark;
+                Ui.setDark(dark);
+                getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                        .putBoolean(KEY_DARK, dark).apply();
+                rerenderAll();
+            }
+        });
+        row.addView(toggle);
+        darkCard.addView(row);
+        settingsContainer.addView(darkCard);
+
+        settingsContainer.addView(sectionHeader("WATCHLIST"));
+        LinearLayout wCard = card();
+        wCard.addView(tv("Follow MLAs and bills with the ☆ button to collect them on your Home screen.",
+                Ui.MUTED, 13f, Typeface.NORMAL));
+        Button clear = new Button(this);
+        clear.setText("Clear watchlist");
+        clear.setTextColor(Ui.NO);
+        clear.setBackgroundColor(Color.TRANSPARENT);
+        clear.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                watchlistMlas = new HashSet<>();
+                watchlistBills = new HashSet<>();
+                persistWatchlist();
+                rerenderAll();
+            }
+        });
+        wCard.addView(clear);
+        settingsContainer.addView(wCard);
+
+        settingsContainer.addView(sectionHeader("ABOUT"));
+        LinearLayout aCard = card();
+        aCard.addView(tv("Commons Bell", Ui.INK, 16f, Typeface.BOLD));
+        aCard.addView(tv("See who represents you, how they vote and what they say — from NI Assembly open data.",
+                Ui.MUTED, 13f, Typeface.NORMAL));
+        TextView ver = tv("Version 0.10.0", Ui.MUTED, 12f, Typeface.NORMAL);
+        ver.setPadding(0, dp(6), 0, 0);
+        aCard.addView(ver);
+        settingsContainer.addView(aCard);
+    }
+
+    private Button accentButton(String label) {
+        Button b = new Button(this);
+        b.setText(label);
+        b.setTextColor(Color.WHITE);
+        b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#134E4A")));
+        return b;
+    }
+
+    // ---------------------------------------------------------------------
+    // Watchlist
+    // ---------------------------------------------------------------------
+    private void toggleWatchMla(DataFetcher.Mla m, TextView star) {
+        Set<String> copy = new HashSet<>(watchlistMlas);
+        if (copy.contains(m.name)) { copy.remove(m.name); star.setText("☆"); }
+        else { copy.add(m.name); star.setText("★"); }
+        watchlistMlas = copy;
+        persistWatchlist();
+        fillWatchlist();
+    }
+
+    private void toggleWatchBill(String key, TextView star) {
+        Set<String> copy = new HashSet<>(watchlistBills);
+        if (copy.contains(key)) { copy.remove(key); star.setText("☆"); }
+        else { copy.add(key); star.setText("★"); }
+        watchlistBills = copy;
+        persistWatchlist();
+        fillWatchlist();
+    }
+
+    private void persistWatchlist() {
+        getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putStringSet(KEY_WATCHLIST_MLAS, watchlistMlas)
+                .putStringSet(KEY_WATCHLIST_BILLS, watchlistBills).apply();
+    }
+
+    private void fillWatchlist() {
+        if (watchlistContainer == null) return;
+        watchlistContainer.removeAllViews();
+        if (watchlistMlas.isEmpty() && watchlistBills.isEmpty()) return;
+        watchlistContainer.addView(sectionHeader("★ YOUR WATCHLIST"));
+        for (String name : watchlistMlas) {
+            DataFetcher.Mla found = null;
+            if (currentSnapshot != null) {
+                for (DataFetcher.Mla m : currentSnapshot.mlas) {
+                    if (name.equals(m.name)) { found = m; break; }
+                }
+            }
+            if (found == null) {
+                for (DataFetcher.Mla m : allMembers) {
+                    if (name.equals(m.name)) { found = m; break; }
+                }
+            }
+            String party = (found != null && found.party != null) ? found.party : "MLA";
+            watchlistContainer.addView(buildWatchRow(name, party,
+                    found != null ? Ui.partyColor(found.party) : Ui.ACCENT, true, name));
+        }
+        for (String title : watchlistBills) {
+            watchlistContainer.addView(buildWatchRow(title, "Bill", Ui.ACCENT, false, title));
+        }
+    }
+
+    private LinearLayout buildWatchRow(String label, String sub, int color,
+                                       final boolean isMla, final String key) {
+        LinearLayout c = card();
+        c.addView(tv(label, color, 14f, Typeface.BOLD));
+        if (sub != null && !sub.isEmpty()) c.addView(tv(sub, Ui.MUTED, 11f, Typeface.NORMAL));
+        TextView x = tv("Unfollow", Ui.NO, 11f, Typeface.BOLD);
+        x.setPadding(0, dp(6), 0, 0);
+        x.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                Set<String> copy = new HashSet<>(isMla ? watchlistMlas : watchlistBills);
+                copy.remove(key);
+                if (isMla) watchlistMlas = copy; else watchlistBills = copy;
+                persistWatchlist();
+                fillWatchlist();
+            }
+        });
+        c.addView(x);
+        return c;
     }
 }

@@ -165,6 +165,30 @@ public class DataFetcher {
         return out;
     }
 
+    /** All current MLAs across every constituency (for member search). */
+    public List<Mla> getAllMembers() throws Exception {
+        List<Mla> out = new ArrayList<>();
+        JSONArray list = arr(
+                new JSONObject(get(BASE + "/members.asmx/GetAllMembers_JSON")),
+                "AllMembersList", "Member");
+        for (int i = 0; i < list.length(); i++) {
+            JSONObject o = list.optJSONObject(i);
+            if (o == null) continue;
+            Mla m = new Mla();
+            m.personId = String.valueOf(o.opt("PersonId"));
+            m.affiliationId = String.valueOf(o.opt("AffiliationId"));
+            String name = o.optString("MemberFullDisplayName");
+            if (name.trim().isEmpty()) name = o.optString("MemberName");
+            if (name.trim().isEmpty()) continue;
+            m.name = name;
+            m.party = o.optString("PartyName");
+            String url = o.optString("MemberImgUrl");
+            if (url != null && !url.isEmpty()) m.photoUrl = url.replace("http://", "https://");
+            out.add(m);
+        }
+        return out;
+    }
+
     private static String shortClock(String iso) {
         // "2026-11-17T09:30:00+00:00" -> "09:30"
         if (iso == null) return "";

@@ -10,14 +10,45 @@ public final class Ui {
 
     private Ui() { }
 
-    public static final int ACCENT = Color.parseColor("#134E4A");
-    public static final int INK = Color.parseColor("#1A2233");
-    public static final int MUTED = Color.parseColor("#6B7280");
-    public static final int LINE = Color.parseColor("#E5E7EB");
+    // Accent / text / surface palette. Mutable so dark mode can re-theme at runtime.
+    public static int ACCENT = Color.parseColor("#134E4A");
+    public static int INK = Color.parseColor("#1A2233");
+    public static int MUTED = Color.parseColor("#6B7280");
+    public static int LINE = Color.parseColor("#E5E7EB");
+    public static int BG = Color.parseColor("#F6F7F9");
+    public static int CARD = Color.WHITE;
+    public static int ACCENT_SOFT = Color.parseColor("#E6F0EF");
+    public static int ERROR_BG = Color.parseColor("#FDECEC");
 
     public static final int AYE = Color.parseColor("#15803D");   // green
     public static final int NO = Color.parseColor("#B91C1C");    // red
     public static final int ABSTAIN = Color.parseColor("#B45309"); // amber
+
+    public static boolean DARK = false;
+
+    /** Re-theme the app palette. Call before (re)building the UI and on toggle. */
+    public static void setDark(boolean dark) {
+        DARK = dark;
+        if (dark) {
+            ACCENT = Color.parseColor("#4FD1C5");
+            INK = Color.parseColor("#E6EAF0");
+            MUTED = Color.parseColor("#94A3B3");
+            LINE = Color.parseColor("#2A3442");
+            BG = Color.parseColor("#101826");
+            CARD = Color.parseColor("#1B2434");
+            ACCENT_SOFT = Color.parseColor("#123B3B");
+            ERROR_BG = Color.parseColor("#3B1D1D");
+        } else {
+            ACCENT = Color.parseColor("#134E4A");
+            INK = Color.parseColor("#1A2233");
+            MUTED = Color.parseColor("#6B7280");
+            LINE = Color.parseColor("#E5E7EB");
+            BG = Color.parseColor("#F6F7F9");
+            CARD = Color.WHITE;
+            ACCENT_SOFT = Color.parseColor("#E6F0EF");
+            ERROR_BG = Color.parseColor("#FDECEC");
+        }
+    }
 
     private static final String[] AYE_CODES = {
             "AYE", "AYE (PROXY)", "SIN", "SUPPORT", "TA", "FOR", "YES", "CONTENT"

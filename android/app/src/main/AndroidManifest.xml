@@ -24,5 +24,9 @@
         <activity
             android:name=".VoteActivity"
             android:exported="false" />
+
+        <activity
+            android:name=".BillActivity"
+            android:exported="false" />
     </application>
 </manifest>

@@ -4,6 +4,8 @@
     <string name="your_area">Your area:</string>
     <string name="nav_home">Home</string>
     <string name="nav_area">My Area</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_settings">Settings</string>
     <string name="your_mlas">Your MLAs</string>
     <string name="recent_votes">Recent votes</string>
     <string name="recent_statements">Recent statements</string>
