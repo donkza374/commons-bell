@@ -1,7 +1,8 @@
 # Commons Bell — Roadmap
 
-> **Status: PLANNING ONLY.** No builds/releases until the user gives the go-ahead.
-> Shipped so far: v0.3.3 (signed release APK, updates install in place).
+> **Status: ACTIVE.** Shipped through **v0.6.0** (bell home screen, bill fine print,
+> MLA photos/history/contact/turnout, cast-your-vote). A vote-log + party recommendation
+> (v0.7.0) is committed locally but not yet built/released.
 
 ## Product goals
 

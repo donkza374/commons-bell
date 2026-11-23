@@ -38,11 +38,6 @@ public class VoteActivity extends Activity {
 
     private static final String PREFS = "cast_votes";
 
-    private static final int C_ACCENT = Color.parseColor("#134E4A");
-    private static final int C_INK = Color.parseColor("#1A2233");
-    private static final int C_MUTED = Color.parseColor("#6B7280");
-    private static final int C_LINE = Color.parseColor("#E5E7EB");
-
     private LinearLayout list;
     private LinearLayout recCard;
     private SharedPreferences prefs;
@@ -81,7 +76,7 @@ public class VoteActivity extends Activity {
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setBackgroundColor(C_ACCENT);
+        header.setBackgroundColor(Ui.ACCENT);
         header.setPadding(dp(16), dp(14), dp(8), dp(14));
         TextView back = tv("‹ Back", Color.WHITE, 16f, Typeface.BOLD);
         back.setOnClickListener(new View.OnClickListener() {
@@ -94,7 +89,7 @@ public class VoteActivity extends Activity {
         root.addView(header);
 
         TextView subtitle = tv("Older votes first — you say Aye or No, then see how your MLAs voted.",
-                C_MUTED, 12f, Typeface.NORMAL);
+                Ui.MUTED, 12f, Typeface.NORMAL);
         subtitle.setPadding(dp(16), dp(10), dp(16), dp(4));
         root.addView(subtitle);
 
@@ -136,7 +131,7 @@ public class VoteActivity extends Activity {
         renderRecommendation();
 
         if (snap == null || snap.votes == null || snap.votes.isEmpty()) {
-            TextView msg = tv("No recent votes to review.", C_MUTED, 14f, Typeface.NORMAL);
+            TextView msg = tv("No recent votes to review.", Ui.MUTED, 14f, Typeface.NORMAL);
             msg.setPadding(dp(8), dp(16), dp(8), dp(16));
             list.addView(msg);
             return;
@@ -184,12 +179,12 @@ public class VoteActivity extends Activity {
         if (recCard == null) return;
         recCard.removeAllViews();
 
-        recCard.addView(tv("YOUR VOTE LOG", C_MUTED, 11f, Typeface.BOLD));
+        recCard.addView(tv("YOUR VOTE LOG", Ui.MUTED, 11f, Typeface.BOLD));
 
         final List<Logged> entries = getLoggedEntries();
         int total = entries.size();
         recCard.addView(tv("You've cast " + total + (total == 1 ? " vote" : " votes"),
-                C_INK, 15f, Typeface.BOLD));
+                Ui.INK, 15f, Typeface.BOLD));
 
         // votes with live MLA breakdown (needed to compare against parties)
         List<Logged> withData = new ArrayList<>();
@@ -200,12 +195,12 @@ public class VoteActivity extends Activity {
         if (withData.size() >= 3) {
             List<PartyScore> ranked = computeScores(withData);
             if (ranked.isEmpty() || ranked.get(0).comparable == 0) {
-                recCard.addView(tv("Not enough comparable votes yet.", C_MUTED, 13f, Typeface.NORMAL));
+                recCard.addView(tv("Not enough comparable votes yet.", Ui.MUTED, 13f, Typeface.NORMAL));
             } else {
                 PartyScore best = ranked.get(0);
                 if (best.pct() >= 50.0) {
                     TextView rec = tv("Best match: " + best.party + "  ·  "
-                            + pctStr(best) + " agreement", partyColor(best.party), 14f, Typeface.BOLD);
+                            + pctStr(best) + " agreement", Ui.partyColor(best.party), 14f, Typeface.BOLD);
                     rec.setPadding(0, dp(6), 0, 0);
                     recCard.addView(rec);
                 } else {
@@ -213,11 +208,11 @@ public class VoteActivity extends Activity {
                     rec.setPadding(0, dp(6), 0, 0);
                     recCard.addView(rec);
                     recCard.addView(tv("No party agrees with you a majority of the time "
-                            + "— none currently matches how you vote.", C_MUTED, 12f, Typeface.NORMAL));
+                            + "— none currently matches how you vote.", Ui.MUTED, 12f, Typeface.NORMAL));
                 }
 
                 // ranked breakdown (top 5)
-                TextView hdr = tv("How you line up", C_MUTED, 11f, Typeface.BOLD);
+                TextView hdr = tv("How you line up", Ui.MUTED, 11f, Typeface.BOLD);
                 hdr.setPadding(0, dp(8), 0, dp(4));
                 recCard.addView(hdr);
                 for (PartyScore s : ranked) {
@@ -226,11 +221,11 @@ public class VoteActivity extends Activity {
                     row.setOrientation(LinearLayout.HORIZONTAL);
                     row.setGravity(Gravity.CENTER_VERTICAL);
                     row.setPadding(0, dp(2), 0, dp(2));
-                    TextView name = tv(s.party, partyColor(s.party), 13f, Typeface.NORMAL);
+                    TextView name = tv(s.party, Ui.partyColor(s.party), 13f, Typeface.NORMAL);
                     name.setLayoutParams(new LinearLayout.LayoutParams(
                             0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
                     row.addView(name);
-                    TextView pct = tv(pctStr(s) + " agreement", C_MUTED, 12f, Typeface.NORMAL);
+                    TextView pct = tv(pctStr(s) + " agreement", Ui.MUTED, 12f, Typeface.NORMAL);
                     row.addView(pct);
                     recCard.addView(row);
                 }
@@ -238,7 +233,7 @@ public class VoteActivity extends Activity {
         } else {
             int need = 3 - withData.size();
             recCard.addView(tv("Cast " + need + " more vote" + (need == 1 ? "" : "s")
-                    + " to get a party recommendation.", C_MUTED, 13f, Typeface.NORMAL));
+                    + " to get a party recommendation.", Ui.MUTED, 13f, Typeface.NORMAL));
         }
 
         // collapsible list of logged votes
@@ -250,7 +245,7 @@ public class VoteActivity extends Activity {
                 log.addView(buildLoggedRow(e));
             }
             log.setVisibility(View.GONE);
-            final TextView toggle = tv("▸ See your logged votes", C_ACCENT, 12f, Typeface.BOLD);
+            final TextView toggle = tv("▸ See your logged votes", Ui.ACCENT, 12f, Typeface.BOLD);
             toggle.setPadding(0, dp(8), 0, 0);
             recCard.addView(toggle);
             recCard.addView(log);
@@ -271,7 +266,7 @@ public class VoteActivity extends Activity {
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(0, dp(4), 0, dp(4));
         String subject = (e.subject == null || e.subject.isEmpty()) ? e.docId : e.subject;
-        TextView sub = tv(truncate(subject, 60), C_INK, 13f, Typeface.NORMAL);
+        TextView sub = tv(Ui.truncate(subject, 60), Ui.INK, 13f, Typeface.NORMAL);
         sub.setLayoutParams(new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         row.addView(sub);
@@ -291,7 +286,7 @@ public class VoteActivity extends Activity {
                 if (mv.party == null || mv.party.isEmpty()) continue;
                 Integer cur = stance.get(mv.party);
                 if (cur == null) cur = 0;
-                stance.put(mv.party, cur + classify(mv.vote));
+                stance.put(mv.party, cur + Ui.classifyVote(mv.vote));
             }
             int myChoice = "AYE".equals(e.choice) ? 1 : -1;
             for (Map.Entry<String, Integer> se : stance.entrySet()) {
@@ -319,15 +314,6 @@ public class VoteActivity extends Activity {
         return ranked;
     }
 
-    /** +1 = Aye, -1 = No, 0 = absent / abstained / unknown. */
-    private int classify(String vote) {
-        if (vote == null) return 0;
-        String u = vote.toUpperCase();
-        for (String c : AYE_CODES) if (u.contains(c)) return 1;
-        for (String c : NO_CODES) if (u.contains(c)) return -1;
-        return 0;
-    }
-
     private String pctStr(PartyScore s) {
         return (int) Math.round(s.pct()) + "%";
     }
@@ -339,17 +325,17 @@ public class VoteActivity extends Activity {
         final LinearLayout card = card(new LinearLayout(this));
         card.setOrientation(LinearLayout.VERTICAL);
 
-        card.addView(tv(v.subject, C_INK, 14f, Typeface.BOLD));
+        card.addView(tv(v.subject, Ui.INK, 14f, Typeface.BOLD));
         String sub = v.date;
         if (v.type != null && !v.type.isEmpty()) sub = (sub == null ? "" : sub + "  ·  ") + v.type;
-        if (sub != null && !sub.isEmpty()) card.addView(tv(sub, C_MUTED, 12f, Typeface.NORMAL));
+        if (sub != null && !sub.isEmpty()) card.addView(tv(sub, Ui.MUTED, 12f, Typeface.NORMAL));
 
         // "What's this bill?" dropdown (fine print)
         final BillKnowledge.BillInfo bi = BillKnowledge.lookup(this, v.subject);
         if (bi != null || (v.description != null && !v.description.isEmpty())) {
             final LinearLayout fp = buildFinePrint(v, bi);
             fp.setVisibility(View.GONE);
-            final TextView toggle = tv("▸ What's this bill?", C_ACCENT, 12f, Typeface.BOLD);
+            final TextView toggle = tv("▸ What's this bill?", Ui.ACCENT, 12f, Typeface.BOLD);
             toggle.setPadding(0, dp(6), 0, 0);
             card.addView(toggle);
             card.addView(fp);
@@ -421,28 +407,28 @@ public class VoteActivity extends Activity {
     }
 
     private void fillResults(DataFetcher.Vote v, LinearLayout resultArea) {
-        TextView how = tv("How your MLAs voted", C_MUTED, 11f, Typeface.BOLD);
+        TextView how = tv("How your MLAs voted", Ui.MUTED, 11f, Typeface.BOLD);
         how.setPadding(0, dp(10), 0, dp(4));
         resultArea.addView(how);
 
         if (v.myVotes == null || v.myVotes.isEmpty()) {
-            resultArea.addView(tv("No per-MLA breakdown available.", C_MUTED, 12f, Typeface.NORMAL));
+            resultArea.addView(tv("No per-MLA breakdown available.", Ui.MUTED, 12f, Typeface.NORMAL));
         } else {
             for (DataFetcher.MyVote mv : v.myVotes) {
                 LinearLayout row = new LinearLayout(this);
                 row.setOrientation(LinearLayout.HORIZONTAL);
                 row.setGravity(Gravity.CENTER_VERTICAL);
                 row.setPadding(0, dp(3), 0, dp(3));
-                TextView who = tv(mv.name, partyColor(mv.party), 13f, Typeface.NORMAL);
+                TextView who = tv(mv.name, Ui.partyColor(mv.party), 13f, Typeface.NORMAL);
                 who.setLayoutParams(new LinearLayout.LayoutParams(
                         0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
                 row.addView(who);
-                row.addView(chip(voteLabel(mv.vote), voteColor(mv.vote)));
+                row.addView(chip(Ui.voteLabel(mv.vote), Ui.voteColor(mv.vote)));
                 resultArea.addView(row);
             }
         }
 
-        TextView link = tv("Read the official report ↗", C_ACCENT, 12f, Typeface.BOLD);
+        TextView link = tv("Read the official report ↗", Ui.ACCENT, 12f, Typeface.BOLD);
         link.setPadding(0, dp(8), 0, 0);
         link.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View vv) {
@@ -465,13 +451,13 @@ public class VoteActivity extends Activity {
         lp.topMargin = dp(4);
         b.setLayoutParams(lp);
 
-        TextView h = tv("BILL FINE PRINT", C_MUTED, 11f, Typeface.BOLD);
+        TextView h = tv("BILL FINE PRINT", Ui.MUTED, 11f, Typeface.BOLD);
         h.setPadding(0, 0, 0, dp(4));
         b.addView(h);
 
         if (bi != null) {
             if (bi.summary != null && !bi.summary.isEmpty()) {
-                b.addView(tv(bi.summary, C_INK, 13f, Typeface.NORMAL));
+                b.addView(tv(bi.summary, Ui.INK, 13f, Typeface.NORMAL));
             }
             if (bi.benefits != null) {
                 for (String s : bi.benefits) {
@@ -494,7 +480,7 @@ public class VoteActivity extends Activity {
         }
 
         if (v.description != null && !v.description.isEmpty()) {
-            TextView full = tv(truncate(v.description, 400), C_MUTED, 12f, Typeface.NORMAL);
+            TextView full = tv(Ui.truncate(v.description, 400), Ui.MUTED, 12f, Typeface.NORMAL);
             full.setPadding(0, dp(6), 0, 0);
             b.addView(full);
         }
@@ -524,7 +510,7 @@ public class VoteActivity extends Activity {
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.WHITE);
         bg.setCornerRadius(dp(12));
-        bg.setStroke(dp(1), C_LINE);
+        bg.setStroke(dp(1), Ui.LINE);
         ll.setBackground(bg);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -560,53 +546,6 @@ public class VoteActivity extends Activity {
 
     private int dp(int v) {
         return (int) (v * getResources().getDisplayMetrics().density + 0.5f);
-    }
-
-    private static String voteLabel(String v) {
-        if (v == null) return "—";
-        String u = v.toUpperCase();
-        if ("AYE".equals(u)) return "AYE";
-        if ("NO".equals(u)) return "NO";
-        if ("ABSTAINED".equals(u)) return "ABSTAINED";
-        if ("ABSENT".equals(u)) return "ABSENT";
-        return "—";
-    }
-
-    private static final String[] AYE_CODES = {
-            "AYE", "AYE (PROXY)", "SIN", "SUPPORT", "TA", "FOR", "YES", "CONTENT"
-    };
-    private static final String[] NO_CODES = {
-            "NO", "NO (PROXY)", "AGAINST", "NOES", "NOT CONTENT", "NIL"
-    };
-
-    private int voteColor(String v) {
-        if (v == null) return C_MUTED;
-        String u = v.toUpperCase();
-        for (String c : AYE_CODES) if (u.contains(c)) return Color.parseColor("#15803D");
-        for (String c : NO_CODES) if (u.contains(c)) return Color.parseColor("#B91C1C");
-        if (u.contains("ABSTAIN")) return Color.parseColor("#B45309");
-        if (u.contains("ABSENT")) return C_MUTED;
-        return C_MUTED;
-    }
-
-    private int partyColor(String party) {
-        if (party == null) return C_MUTED;
-        String p = party.toLowerCase();
-        if (p.contains("sinn")) return Color.parseColor("#008000");
-        if (p.contains("dup")) return Color.parseColor("#D46A4A");
-        if (p.contains("uup") || p.contains("ulster unionist")) return Color.parseColor("#48A5EE");
-        if (p.contains("alliance")) return Color.parseColor("#D4A017");
-        if (p.contains("tuv")) return Color.parseColor("#1F4E79");
-        if (p.contains("sdlp")) return Color.parseColor("#2AA82A");
-        if (p.equals("green") || p.contains("green party")) return Color.parseColor("#008000");
-        return C_MUTED;
-    }
-
-    private static String truncate(String s, int max) {
-        if (s == null) return "";
-        s = s.trim();
-        if (s.length() <= max) return s;
-        return s.substring(0, max).trim() + "…";
     }
 
     private void open(String url) {

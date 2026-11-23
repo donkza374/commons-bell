@@ -70,12 +70,6 @@ public class MainActivity extends Activity {
     private boolean populatingSpinner = false;
     private int currentConstituencyId = DataFetcher.DEFAULT_CONSTITUENCY_ID;
 
-    // palette (matches res/values/colors.xml)
-    private static final int C_ACCENT = Color.parseColor("#134E4A");
-    private static final int C_INK = Color.parseColor("#1A2233");
-    private static final int C_MUTED = Color.parseColor("#6B7280");
-    private static final int C_LINE = Color.parseColor("#E5E7EB");
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -255,7 +249,7 @@ public class MainActivity extends Activity {
 
     private void setStatus(String msg, boolean error) {
         statusView.setText(msg);
-        statusView.setTextColor(error ? Color.parseColor("#B91C1C") : C_ACCENT);
+        statusView.setTextColor(error ? Color.parseColor("#B91C1C") : Ui.ACCENT);
         statusView.setBackgroundColor(error ? Color.parseColor("#FDECEC") : Color.parseColor("#E6F0EF"));
     }
 
@@ -285,9 +279,9 @@ public class MainActivity extends Activity {
     }
 
     private void setNav(boolean homeActive) {
-        navHome.setTextColor(homeActive ? C_ACCENT : C_MUTED);
+        navHome.setTextColor(homeActive ? Ui.ACCENT : Ui.MUTED);
         navHome.setTypeface(Typeface.DEFAULT, homeActive ? Typeface.BOLD : Typeface.NORMAL);
-        navArea.setTextColor(homeActive ? C_MUTED : C_ACCENT);
+        navArea.setTextColor(homeActive ? Ui.MUTED : Ui.ACCENT);
         navArea.setTypeface(Typeface.DEFAULT, homeActive ? Typeface.NORMAL : Typeface.BOLD);
     }
 
@@ -329,7 +323,7 @@ public class MainActivity extends Activity {
         homeContainer.removeAllViews();
         homeContainer.addView(buildBell());
         ensureHomeFeed();
-        homeFeed.addView(tv("Loading…", C_MUTED, 14f, Typeface.NORMAL));
+        homeFeed.addView(tv("Loading…", Ui.MUTED, 14f, Typeface.NORMAL));
     }
 
     private void renderHome(List<DataFetcher.DiaryItem> diary, List<DataFetcher.Business> bills) {
@@ -339,7 +333,7 @@ public class MainActivity extends Activity {
 
         homeFeed.addView(sectionHeader("WHAT'S ON TODAY"));
         if (diary == null || diary.isEmpty()) {
-            homeFeed.addView(tv("Nothing scheduled in the coming days.", C_MUTED, 14f, Typeface.NORMAL));
+            homeFeed.addView(tv("Nothing scheduled in the coming days.", Ui.MUTED, 14f, Typeface.NORMAL));
         } else {
             int shown = 0;
             for (DataFetcher.DiaryItem d : diary) {
@@ -350,7 +344,7 @@ public class MainActivity extends Activity {
 
         homeFeed.addView(sectionHeader("BILLS IN PROGRESS"));
         if (bills == null || bills.isEmpty()) {
-            homeFeed.addView(tv("No bills in progress found.", C_MUTED, 14f, Typeface.NORMAL));
+            homeFeed.addView(tv("No bills in progress found.", Ui.MUTED, 14f, Typeface.NORMAL));
         } else {
             int shown = 0;
             for (DataFetcher.Business b : bills) {
@@ -364,8 +358,8 @@ public class MainActivity extends Activity {
         homeContainer.removeAllViews();
         homeContainer.addView(buildBell());
         ensureHomeFeed();
-        homeFeed.addView(tv(msg, C_MUTED, 14f, Typeface.NORMAL));
-        TextView retry = tv("Tap to retry", C_ACCENT, 13f, Typeface.BOLD);
+        homeFeed.addView(tv(msg, Ui.MUTED, 14f, Typeface.NORMAL));
+        TextView retry = tv("Tap to retry", Ui.ACCENT, 13f, Typeface.BOLD);
         retry.setPadding(0, dp(10), 0, 0);
         retry.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { loadHomeData(); }
@@ -390,14 +384,14 @@ public class MainActivity extends Activity {
         lp.bottomMargin = dp(8);
         wrap.setLayoutParams(lp);
 
-        TextView bell = tv("🔔", C_ACCENT, 64f, Typeface.NORMAL);
+        TextView bell = tv("🔔", Ui.ACCENT, 64f, Typeface.NORMAL);
         bell.setGravity(Gravity.CENTER);
         bell.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { ringBell(); }
         });
         wrap.addView(bell);
 
-        TextView hint = tv("Tap the bell", C_MUTED, 14f, Typeface.NORMAL);
+        TextView hint = tv("Tap the bell", Ui.MUTED, 14f, Typeface.NORMAL);
         hint.setGravity(Gravity.CENTER);
         wrap.addView(hint);
         return wrap;
@@ -420,7 +414,7 @@ public class MainActivity extends Activity {
     }
 
     private TextView sectionHeader(String text) {
-        TextView t = tv(text, C_MUTED, 12f, Typeface.BOLD);
+        TextView t = tv(text, Ui.MUTED, 12f, Typeface.BOLD);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.topMargin = dp(16);
@@ -435,18 +429,18 @@ public class MainActivity extends Activity {
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
         TextView time = tv((d.startTime == null || d.startTime.isEmpty()) ? "--:--" : d.startTime,
-                C_INK, 15f, Typeface.BOLD);
+                Ui.INK, 15f, Typeface.BOLD);
         time.setPadding(0, 0, dp(12), 0);
         row.addView(time);
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setLayoutParams(new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        col.addView(tv(d.organisationName, C_INK, 14f, Typeface.BOLD));
+        col.addView(tv(d.organisationName, Ui.INK, 14f, Typeface.BOLD));
         String sub = d.eventType == null ? "" : d.eventType;
         if (d.locationRoom != null && !d.locationRoom.isEmpty()) sub += "  ·  " + d.locationRoom;
         if (d.weekday != null && !d.weekday.isEmpty()) sub += "  ·  " + d.weekday;
-        col.addView(tv(sub, C_MUTED, 12f, Typeface.NORMAL));
+        col.addView(tv(sub, Ui.MUTED, 12f, Typeface.NORMAL));
         row.addView(col);
         card.addView(row);
         return card;
@@ -461,12 +455,12 @@ public class MainActivity extends Activity {
         left.setOrientation(LinearLayout.VERTICAL);
         left.setLayoutParams(new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        left.addView(tv(b.title, C_INK, 14f, Typeface.BOLD));
+        left.addView(tv(b.title, Ui.INK, 14f, Typeface.BOLD));
         String sub = (b.type == null || b.type.isEmpty()) ? "" : b.type;
         if (b.date != null && !b.date.isEmpty()) {
-            sub = sub.isEmpty() ? formatDate(b.date) : sub + "  ·  " + formatDate(b.date);
+            sub = sub.isEmpty() ? Ui.formatDate(b.date) : sub + "  ·  " + Ui.formatDate(b.date);
         }
-        if (!sub.isEmpty()) left.addView(tv(sub, C_MUTED, 12f, Typeface.NORMAL));
+        if (!sub.isEmpty()) left.addView(tv(sub, Ui.MUTED, 12f, Typeface.NORMAL));
         header.addView(left);
 
         final BillKnowledge.BillInfo bi = BillKnowledge.lookup(this,
@@ -474,7 +468,7 @@ public class MainActivity extends Activity {
         boolean hasBody = (b.text != null && !b.text.isEmpty()) || bi != null;
 
         if (hasBody) {
-            final TextView arrow = tv("▸", C_MUTED, 16f, Typeface.BOLD);
+            final TextView arrow = tv("▸", Ui.MUTED, 16f, Typeface.BOLD);
             header.addView(arrow);
             card.addView(header);
             final LinearLayout body = new LinearLayout(this);
@@ -483,11 +477,11 @@ public class MainActivity extends Activity {
             body.setPadding(dp(4), dp(8), dp(4), 0);
 
             if (bi != null) {
-                TextView h = tv("BILL FINE PRINT", C_MUTED, 11f, Typeface.BOLD);
+                TextView h = tv("BILL FINE PRINT", Ui.MUTED, 11f, Typeface.BOLD);
                 h.setPadding(0, 0, 0, dp(4));
                 body.addView(h);
                 if (bi.summary != null && !bi.summary.isEmpty()) {
-                    body.addView(tv(bi.summary, C_INK, 13f, Typeface.NORMAL));
+                    body.addView(tv(bi.summary, Ui.INK, 13f, Typeface.NORMAL));
                 }
                 if (bi.benefits != null) {
                     for (String s : bi.benefits) {
@@ -509,7 +503,7 @@ public class MainActivity extends Activity {
                 }
             }
             if (b.text != null && !b.text.isEmpty()) {
-                TextView raw = tv(truncate(b.text, 400), C_MUTED, 12f, Typeface.NORMAL);
+                TextView raw = tv(Ui.truncate(b.text, 400), Ui.MUTED, 12f, Typeface.NORMAL);
                 raw.setPadding(0, dp(6), 0, 0);
                 body.addView(raw);
             }
@@ -592,7 +586,7 @@ public class MainActivity extends Activity {
                             Map<String, List<DataFetcher.Statement>> byName) {
         mlasContainer.removeAllViews();
         if (mlas == null || mlas.isEmpty()) {
-            mlasContainer.addView(tv("No MLAs found for this area.", C_MUTED, 14f, Typeface.NORMAL));
+            mlasContainer.addView(tv("No MLAs found for this area.", Ui.MUTED, 14f, Typeface.NORMAL));
             return;
         }
         for (final DataFetcher.Mla m : mlas) {
@@ -605,7 +599,7 @@ public class MainActivity extends Activity {
     private LinearLayout buildMlaCard(final DataFetcher.Mla m,
                                       final List<DataFetcher.Statement> stmts) {
         LinearLayout card = card();
-        int pc = partyColor(m.party);
+        int pc = Ui.partyColor(m.party);
         final MemberBio.Info bio = (memberBio == null) ? null : memberBio.get(m.personId);
 
         // header row (tap to expand/collapse)
@@ -628,24 +622,24 @@ public class MainActivity extends Activity {
         left.addView(tv(m.name, pc, 16f, Typeface.BOLD));
         left.addView(tv(m.party, pc, 12f, Typeface.BOLD));
         if (bio != null && bio.memberSince != null && !bio.memberSince.isEmpty()) {
-            left.addView(tv(bio.memberSince, C_MUTED, 11f, Typeface.NORMAL));
+            left.addView(tv(bio.memberSince, Ui.MUTED, 11f, Typeface.NORMAL));
         }
         if (bio != null && bio.roleCurrent != null && !bio.roleCurrent.isEmpty()) {
-            left.addView(tv(bio.roleCurrent, C_MUTED, 11f, Typeface.NORMAL));
+            left.addView(tv(bio.roleCurrent, Ui.MUTED, 11f, Typeface.NORMAL));
         }
         int[] att = (attendance == null) ? null : attendance.get(m.name);
         if (att != null && att[1] > 0) {
             int pct = (int) Math.round(att[0] * 100.0 / att[1]);
             left.addView(tv("Voted in " + att[0] + " of " + att[1] + " recent divisions (" + pct + "%)",
-                    C_MUTED, 11f, Typeface.NORMAL));
+                    Ui.MUTED, 11f, Typeface.NORMAL));
         }
         String last = mostRecentDate(stmts);
         if (!last.isEmpty()) {
-            left.addView(tv("Last spoke " + formatDate(last), C_MUTED, 12f, Typeface.NORMAL));
+            left.addView(tv("Last spoke " + Ui.formatDate(last), Ui.MUTED, 12f, Typeface.NORMAL));
         }
         header.addView(left);
 
-        final TextView arrow = tv("▸", C_MUTED, 18f, Typeface.BOLD);
+        final TextView arrow = tv("▸", Ui.MUTED, 18f, Typeface.BOLD);
         header.addView(arrow);
         card.addView(header);
 
@@ -656,14 +650,14 @@ public class MainActivity extends Activity {
         body.setPadding(dp(4), dp(8), dp(4), dp(2));
 
         if (bio != null && bio.career != null && !bio.career.isEmpty()) {
-            body.addView(tv("Before politics: " + bio.career, C_INK, 12f, Typeface.NORMAL));
+            body.addView(tv("Before politics: " + bio.career, Ui.INK, 12f, Typeface.NORMAL));
         }
         if (bio != null && bio.previousRole != null && !bio.previousRole.isEmpty()) {
-            body.addView(tv("Previously: " + bio.previousRole, C_MUTED, 12f, Typeface.NORMAL));
+            body.addView(tv("Previously: " + bio.previousRole, Ui.MUTED, 12f, Typeface.NORMAL));
         }
 
         if (m.email != null && !m.email.isEmpty()) {
-            TextView em = tv("✉  " + m.email, C_ACCENT, 12f, Typeface.BOLD);
+            TextView em = tv("✉  " + m.email, Ui.ACCENT, 12f, Typeface.BOLD);
             em.setPadding(0, dp(6), 0, 0);
             em.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
@@ -676,7 +670,7 @@ public class MainActivity extends Activity {
             body.addView(em);
         }
         if (m.phone != null && !m.phone.isEmpty()) {
-            TextView ph = tv("☎  " + m.phone, C_ACCENT, 12f, Typeface.BOLD);
+            TextView ph = tv("☎  " + m.phone, Ui.ACCENT, 12f, Typeface.BOLD);
             ph.setPadding(0, dp(6), 0, 0);
             ph.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
@@ -690,7 +684,7 @@ public class MainActivity extends Activity {
         }
 
         if (m.profileUrl != null && !m.profileUrl.isEmpty()) {
-            TextView prof = tv("Official profile ↗", C_ACCENT, 12f, Typeface.BOLD);
+            TextView prof = tv("Official profile ↗", Ui.ACCENT, 12f, Typeface.BOLD);
             prof.setPadding(0, dp(6), 0, dp(4));
             prof.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) { open(m.profileUrl); }
@@ -704,7 +698,7 @@ public class MainActivity extends Activity {
                 body.addView(buildStatementEntry(stmts.get(i)));
             }
         } else {
-            body.addView(tv("No recent statements in Hansard.", C_MUTED, 13f, Typeface.NORMAL));
+            body.addView(tv("No recent statements in Hansard.", Ui.MUTED, 13f, Typeface.NORMAL));
         }
         card.addView(body);
 
@@ -725,16 +719,16 @@ public class MainActivity extends Activity {
         e.setOrientation(LinearLayout.VERTICAL);
         e.setPadding(0, dp(6), 0, dp(6));
         if (s.date != null && !s.date.isEmpty()) {
-            e.addView(tv(formatDate(s.date), C_MUTED, 11f, Typeface.NORMAL));
+            e.addView(tv(Ui.formatDate(s.date), Ui.MUTED, 11f, Typeface.NORMAL));
         }
         if (s.topic != null && !s.topic.isEmpty()) {
-            e.addView(tv(s.topic, C_ACCENT, 12f, Typeface.BOLD));
+            e.addView(tv(s.topic, Ui.ACCENT, 12f, Typeface.BOLD));
         }
         if (s.text != null && !s.text.isEmpty()) {
-            e.addView(tv(s.text, C_INK, 13f, Typeface.NORMAL));
+            e.addView(tv(s.text, Ui.INK, 13f, Typeface.NORMAL));
         }
         if (s.url != null && !s.url.isEmpty()) {
-            TextView link = tv("Official Report ↗", C_ACCENT, 12f, Typeface.BOLD);
+            TextView link = tv("Official Report ↗", Ui.ACCENT, 12f, Typeface.BOLD);
             link.setPadding(0, dp(4), 0, 0);
             link.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) { open(s.url); }
@@ -748,7 +742,7 @@ public class MainActivity extends Activity {
         View v = new View(this);
         v.setLayoutParams(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
-        v.setBackgroundColor(C_LINE);
+        v.setBackgroundColor(Ui.LINE);
         return v;
     }
 
@@ -766,14 +760,14 @@ public class MainActivity extends Activity {
     private void renderVotes(List<DataFetcher.Vote> votes) {
         votesContainer.removeAllViews();
         if (votes == null || votes.isEmpty()) {
-            votesContainer.addView(tv("No recent divisions found.", C_MUTED, 14f, Typeface.NORMAL));
+            votesContainer.addView(tv("No recent divisions found.", Ui.MUTED, 14f, Typeface.NORMAL));
             return;
         }
         for (DataFetcher.Vote v : votes) {
             LinearLayout card = card();
-            card.addView(tv(v.subject, C_INK, 14f, Typeface.BOLD));
+            card.addView(tv(v.subject, Ui.INK, 14f, Typeface.BOLD));
             card.addView(tv(v.date + (v.type != null && !v.type.isEmpty()
-                    ? "  ·  " + v.type : ""), C_MUTED, 12f, Typeface.NORMAL));
+                    ? "  ·  " + v.type : ""), Ui.MUTED, 12f, Typeface.NORMAL));
 
             for (DataFetcher.MyVote mv : v.myVotes) {
                 LinearLayout row = new LinearLayout(this);
@@ -781,19 +775,19 @@ public class MainActivity extends Activity {
                 row.setGravity(Gravity.CENTER_VERTICAL);
                 row.setPadding(0, dp(4), 0, dp(4));
 
-                TextView who = tv(mv.name, partyColor(mv.party), 13f, Typeface.NORMAL);
+                TextView who = tv(mv.name, Ui.partyColor(mv.party), 13f, Typeface.NORMAL);
                 who.setLayoutParams(new LinearLayout.LayoutParams(
                         0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
                 row.addView(who);
 
-                row.addView(chip(voteLabel(mv.vote), voteColor(mv.vote)));
+                row.addView(chip(Ui.voteLabel(mv.vote), Ui.voteColor(mv.vote)));
                 card.addView(row);
             }
 
             if (hasVoteInfo(v)) {
                 final LinearLayout info = buildVoteInfo(v);
                 info.setVisibility(View.GONE);
-                final TextView toggle = tv("▸ More info", C_ACCENT, 12f, Typeface.BOLD);
+                final TextView toggle = tv("▸ More info", Ui.ACCENT, 12f, Typeface.BOLD);
                 toggle.setPadding(0, dp(6), 0, 0);
                 card.addView(toggle);
                 card.addView(info);
@@ -835,11 +829,11 @@ public class MainActivity extends Activity {
 
         BillKnowledge.BillInfo bi = BillKnowledge.lookup(this, v.subject);
         if (bi != null) {
-            TextView h = tv("BILL FINE PRINT", C_MUTED, 11f, Typeface.BOLD);
+            TextView h = tv("BILL FINE PRINT", Ui.MUTED, 11f, Typeface.BOLD);
             h.setPadding(0, 0, 0, dp(4));
             b.addView(h);
             if (bi.summary != null && !bi.summary.isEmpty()) {
-                b.addView(tv(bi.summary, C_INK, 13f, Typeface.NORMAL));
+                b.addView(tv(bi.summary, Ui.INK, 13f, Typeface.NORMAL));
             }
             if (bi.benefits != null) {
                 for (String s : bi.benefits) {
@@ -860,15 +854,15 @@ public class MainActivity extends Activity {
                 }
             }
             if (v.description != null && !v.description.isEmpty()) {
-                TextView full = tv(truncate(v.description, 400), C_MUTED, 12f, Typeface.NORMAL);
+                TextView full = tv(Ui.truncate(v.description, 400), Ui.MUTED, 12f, Typeface.NORMAL);
                 full.setPadding(0, dp(6), 0, 0);
                 b.addView(full);
             }
         } else if (v.description != null && !v.description.isEmpty()) {
-            b.addView(tv(truncate(v.description, 420), C_INK, 13f, Typeface.NORMAL));
+            b.addView(tv(Ui.truncate(v.description, 420), Ui.INK, 13f, Typeface.NORMAL));
         }
         if (v.outcome != null && !v.outcome.isEmpty()) {
-            TextView o = tv(v.outcome, C_ACCENT, 13f, Typeface.BOLD);
+            TextView o = tv(v.outcome, Ui.ACCENT, 13f, Typeface.BOLD);
             o.setPadding(0, dp(6), 0, 0);
             b.addView(o);
         }
@@ -883,7 +877,7 @@ public class MainActivity extends Activity {
             sb.append("Abstained ").append(v.totalAbstentions);
         }
         if (sb.length() > 0) {
-            b.addView(tv(sb.toString(), C_MUTED, 12f, Typeface.NORMAL));
+            b.addView(tv(sb.toString(), Ui.MUTED, 12f, Typeface.NORMAL));
         }
         return b;
     }
@@ -934,7 +928,7 @@ public class MainActivity extends Activity {
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.WHITE);
         bg.setCornerRadius(dp(12));
-        bg.setStroke(dp(1), C_LINE);
+        bg.setStroke(dp(1), Ui.LINE);
         ll.setBackground(bg);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -971,71 +965,9 @@ public class MainActivity extends Activity {
         }).start();
     }
 
-    private static String voteLabel(String v) {
-        if (v == null) return "—";
-        String u = v.toUpperCase();
-        if ("AYE".equals(u)) return "AYE";
-        if ("NO".equals(u)) return "NO";
-        if ("ABSTAINED".equals(u)) return "ABSTAINED";
-        if ("ABSENT".equals(u)) return "ABSENT";
-        return "—";
-    }
-
-    private static final String[] AYE_CODES = {
-            "AYE", "AYE (PROXY)", "SIN", "SUPPORT", "TA", "FOR", "YES", "CONTENT"
-    };
-    private static final String[] NO_CODES = {
-            "NO", "NO (PROXY)", "AGAINST", "NOES", "NOT CONTENT", "NIL"
-    };
-
-    private int voteColor(String v) {
-        if (v == null) return C_MUTED;
-        String u = v.toUpperCase();
-        for (String c : AYE_CODES) if (u.contains(c)) return Color.parseColor("#15803D");
-        for (String c : NO_CODES) if (u.contains(c)) return Color.parseColor("#B91C1C");
-        if (u.contains("ABSTAIN")) return Color.parseColor("#B45309");
-        if (u.contains("ABSENT")) return C_MUTED;
-        return C_MUTED;
-    }
-
-    private int partyColor(String party) {
-        if (party == null) return C_MUTED;
-        String p = party.toLowerCase();
-        if (p.contains("sinn")) return Color.parseColor("#008000");          // Sinn Féin
-        if (p.contains("dup")) return Color.parseColor("#D46A4A");           // DUP
-        if (p.contains("uup") || p.contains("ulster unionist")) return Color.parseColor("#48A5EE");
-        if (p.contains("alliance")) return Color.parseColor("#D4A017");
-        if (p.contains("tuv")) return Color.parseColor("#1F4E79");
-        if (p.contains("sdlp")) return Color.parseColor("#2AA82A");
-        if (p.equals("green") || p.contains("green party")) return Color.parseColor("#008000");
-        return C_MUTED;
-    }
-
-    private static String formatDate(String iso) {
-        if (iso == null || iso.isEmpty()) return "";
-        String[] p = iso.split("-");
-        if (p.length != 3) return iso;
-        String[] months = {"Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"};
-        try {
-            int mm = Integer.parseInt(p[1]);
-            int dd = Integer.parseInt(p[2]);
-            String mon = (mm >= 1 && mm <= 12) ? months[mm - 1] : p[1];
-            return dd + " " + mon + " " + p[0];
-        } catch (NumberFormatException e) {
-            return iso;
-        }
-    }
-
     private static int parseIntSafe(String s, int def) {
         if (s == null) return def;
         try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return def; }
-    }
-
-    private static String truncate(String s, int max) {
-        if (s == null) return "";
-        s = s.trim();
-        if (s.length() <= max) return s;
-        return s.substring(0, max).trim() + "…";
     }
 
     private static String timeAgo(long epochMillis) {
