@@ -50,7 +50,6 @@ jobs:
           COMMONS_BELL_KEY_ALIAS: ${{ secrets.COMMONS_BELL_KEY_ALIAS }}
 
       - name: Upload AAB to Google Play (Internal testing)
-        if: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON != '' }}
         uses: r0adkll/upload-google-play@v1.1.3
         with:
           serviceAccountJson: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
