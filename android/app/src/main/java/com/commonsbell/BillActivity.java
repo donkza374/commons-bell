@@ -31,7 +31,7 @@ public class BillActivity extends Activity {
             @Override public android.view.WindowInsets onApplyWindowInsets(
                     View v, android.view.WindowInsets insets) {
                 int top = insets.getSystemWindowInsetTop();
-                header.setPadding(dp(12), dp(12) + top, dp(12), dp(12));
+                header.setPadding(dp(12), dp(12) + top + dp(Ui.topSpacing(BillActivity.this)), dp(12), dp(12));
                 return insets;
             }
         });

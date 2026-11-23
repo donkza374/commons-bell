@@ -1,5 +1,6 @@
 package com.commonsbell;
 
+import android.content.Context;
 import android.graphics.Color;
 
 /**
@@ -26,6 +27,21 @@ public final class Ui {
     public static final int ABSTAIN = Color.parseColor("#B45309"); // amber
 
     public static boolean DARK = false;
+
+    // Shared preferences keys (see MainActivity for the matching PREFS string).
+    public static final String PREFS = "commonsbell";
+    public static final String KEY_TOP_SPACING = "top_spacing";
+    public static final String KEY_BOTTOM_SPACING = "bottom_spacing";
+
+    /** User-adjustable extra edge spacing (in dp), applied on top of system insets. */
+    public static int topSpacing(Context ctx) {
+        return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getInt(KEY_TOP_SPACING, 0);
+    }
+    public static int bottomSpacing(Context ctx) {
+        return ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getInt(KEY_BOTTOM_SPACING, 0);
+    }
 
     /** Re-theme the app palette. Call before (re)building the UI and on toggle. */
     public static void setDark(boolean dark) {

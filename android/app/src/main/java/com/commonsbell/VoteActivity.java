@@ -129,7 +129,7 @@ public class VoteActivity extends Activity {
             @Override public android.view.WindowInsets onApplyWindowInsets(
                     View v, android.view.WindowInsets insets) {
                 int top = insets.getSystemWindowInsetTop();
-                header.setPadding(dp(16), dp(14) + top, dp(16), dp(14));
+                header.setPadding(dp(16), dp(14) + top + dp(Ui.topSpacing(VoteActivity.this)), dp(16), dp(14));
                 return insets;
             }
         });

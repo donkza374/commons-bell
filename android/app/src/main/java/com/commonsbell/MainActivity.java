@@ -29,6 +29,7 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
+import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 
@@ -104,6 +105,7 @@ public class MainActivity extends Activity {
     private boolean dark = false;
     private View header;
     private TextView yourAreaLabel;
+    private android.view.WindowInsets lastInsets = null;
 
     private DataFetcher.Snapshot currentSnapshot;
     private Map<String, MemberBio.Info> memberBio;
@@ -509,17 +511,25 @@ public class MainActivity extends Activity {
 
     private void applyInsets() {
         if (android.os.Build.VERSION.SDK_INT < 21) return;
-        final View h = header;
         root.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
             @Override public android.view.WindowInsets onApplyWindowInsets(
                     View v, android.view.WindowInsets insets) {
-                int top = insets.getSystemWindowInsetTop();
-                int bottom = insets.getSystemWindowInsetBottom();
-                h.setPadding(dp(16), dp(16) + top, dp(16), dp(16));
-                navBar.setPadding(0, dp(6), 0, dp(6) + bottom);
+                lastInsets = insets;
+                applyEdgePadding();
                 return insets;
             }
         });
+        applyEdgePadding();
+    }
+
+    /** Apply status/nav-bar insets plus the user's adjustable edge spacing. */
+    private void applyEdgePadding() {
+        int top = (lastInsets != null) ? lastInsets.getSystemWindowInsetTop() : 0;
+        int bottom = (lastInsets != null) ? lastInsets.getSystemWindowInsetBottom() : 0;
+        int topExtra = Ui.topSpacing(this);
+        int bottomExtra = Ui.bottomSpacing(this);
+        header.setPadding(dp(16), dp(16) + top + dp(topExtra), dp(16), dp(16));
+        navBar.setPadding(0, dp(6), 0, dp(6) + bottom + dp(bottomExtra));
     }
 
     private void rerenderAll() {
@@ -1777,6 +1787,14 @@ public class MainActivity extends Activity {
         darkCard.addView(row);
         settingsContainer.addView(darkCard);
 
+        settingsContainer.addView(sectionHeader("LAYOUT"));
+        LinearLayout layoutCard = card();
+        layoutCard.addView(tv("Adjust the spacing at the top and bottom edges of the screen.",
+                Ui.MUTED, 13f, Typeface.NORMAL));
+        layoutCard.addView(spacingRow("Top spacing", true));
+        layoutCard.addView(spacingRow("Bottom spacing", false));
+        settingsContainer.addView(layoutCard);
+
         settingsContainer.addView(sectionHeader("WATCHLIST"));
         LinearLayout wCard = card();
         wCard.addView(tv("Follow MLAs and bills with the ☆ button to collect them on your Home screen.",
@@ -1801,10 +1819,48 @@ public class MainActivity extends Activity {
         aCard.addView(tv("Commons Bell", Ui.INK, 16f, Typeface.BOLD));
         aCard.addView(tv("See who represents you, how they vote and what they say — from NI Assembly open data.",
                 Ui.MUTED, 13f, Typeface.NORMAL));
-        TextView ver = tv("Version 0.10.1", Ui.MUTED, 12f, Typeface.NORMAL);
+        TextView ver = tv("Version 0.10.2", Ui.MUTED, 12f, Typeface.NORMAL);
         ver.setPadding(0, dp(6), 0, 0);
         aCard.addView(ver);
         settingsContainer.addView(aCard);
+    }
+
+    private View spacingRow(final String label, final boolean isTop) {
+        final String key = isTop ? Ui.KEY_TOP_SPACING : Ui.KEY_BOTTOM_SPACING;
+        int current = getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(key, 0);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setPadding(0, dp(8), 0, 0);
+
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        TextView lbl = tv(label, Ui.INK, 14f, Typeface.NORMAL);
+        lbl.setLayoutParams(new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        head.addView(lbl);
+        final TextView val = tv(current + " dp", Ui.MUTED, 12f, Typeface.NORMAL);
+        head.addView(val);
+        row.addView(head);
+
+        SeekBar sb = new SeekBar(this);
+        sb.setMax(48);
+        sb.setProgress(current);
+        sb.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                val.setText(progress + " dp");
+                if (fromUser) {
+                    getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                            .putInt(key, progress).apply();
+                    applyEdgePadding();
+                }
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) { }
+            @Override public void onStopTrackingTouch(SeekBar seekBar) { }
+        });
+        row.addView(sb);
+        return row;
     }
 
     private Button accentButton(String label) {
