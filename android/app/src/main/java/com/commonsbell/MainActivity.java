@@ -1801,7 +1801,7 @@ public class MainActivity extends Activity {
         aCard.addView(tv("Commons Bell", Ui.INK, 16f, Typeface.BOLD));
         aCard.addView(tv("See who represents you, how they vote and what they say — from NI Assembly open data.",
                 Ui.MUTED, 13f, Typeface.NORMAL));
-        TextView ver = tv("Version 0.10.0", Ui.MUTED, 12f, Typeface.NORMAL);
+        TextView ver = tv("Version 0.10.1", Ui.MUTED, 12f, Typeface.NORMAL);
         ver.setPadding(0, dp(6), 0, 0);
         aCard.addView(ver);
         settingsContainer.addView(aCard);
