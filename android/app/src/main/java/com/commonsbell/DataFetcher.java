@@ -440,6 +440,103 @@ public class DataFetcher {
         return snap;
     }
 
+    /**
+     * More (older) divisions for paging the vote deck back in time. Enriches each
+     * with per-MLA votes, totals and description so older votes can be compared
+     * against party stances just like the recent ones.
+     */
+    public List<Vote> fetchMoreVotes(int constituencyId, LocalDate start, LocalDate end)
+            throws Exception {
+        List<Mla> mlas = new ArrayList<>();
+        JSONArray mlaArr = arr(
+                new JSONObject(get(BASE + "/members.asmx/GetAllCurrentMembersByGivenConstituencyId_JSON"
+                        + "?constituencyId=" + constituencyId)),
+                "AllMembersList", "Member");
+        for (int i = 0; i < mlaArr.length(); i++) {
+            JSONObject m = mlaArr.optJSONObject(i);
+            if (m == null) continue;
+            Mla mla = new Mla();
+            mla.personId = String.valueOf(m.opt("PersonId"));
+            mla.affiliationId = String.valueOf(m.opt("AffiliationId"));
+            mla.name = m.optString("MemberFullDisplayName");
+            mla.party = m.optString("PartyName");
+            mla.profileUrl = PROFILE_BASE + "?aff=" + mla.affiliationId
+                    + "&per=" + mla.personId + "&sel=1&ind=0&prv=0";
+            mlas.add(mla);
+        }
+
+        List<Vote> out = new ArrayList<>();
+        JSONArray divArr = arr(
+                new JSONObject(get(BASE + "/plenary.asmx/GetVotesOnDivision_JSON"
+                        + "?startDate=" + start + "&endDate=" + end)),
+                "DivisionList", "Division");
+        Map<String, List<JSONObject>> plenaryCache = new HashMap<>();
+        int maxDetails = 60;
+        for (int i = 0; i < divArr.length(); i++) {
+            JSONObject d = divArr.optJSONObject(i);
+            if (d == null) continue;
+            Vote v = new Vote();
+            v.documentId = String.valueOf(d.opt("DocumentID"));
+            v.subject = d.optString("DivisionSubject");
+            v.date = shortTime(d.optString("DivisionDate"));
+            v.type = d.optString("DivisonType");
+
+            Map<String, String> memberVotes = new HashMap<>();
+            if (i < maxDetails && !v.documentId.isEmpty() && !"null".equals(v.documentId)) {
+                try {
+                    JSONArray mva = arr(
+                            new JSONObject(get(BASE + "/plenary.asmx/GetDivisionMemberVoting_JSON"
+                                    + "?documentid=" + v.documentId)),
+                            "MemberVoting", "Member");
+                    for (int j = 0; j < mva.length(); j++) {
+                        JSONObject mv = mva.optJSONObject(j);
+                        if (mv != null) {
+                            memberVotes.put(String.valueOf(mv.opt("PersonID")), mv.optString("Vote"));
+                        }
+                    }
+                } catch (Exception ignore) { }
+            }
+
+            if (!v.documentId.isEmpty() && !"null".equals(v.documentId)) {
+                try {
+                    JSONObject res = arr(
+                            new JSONObject(get(BASE + "/plenary.asmx/GetDivisionResult_JSON"
+                                    + "?documentId=" + v.documentId)),
+                            "DivisionDetails", "Division").optJSONObject(0);
+                    if (res != null) {
+                        v.outcome = res.optString("Outcome");
+                        v.totalAyes = res.optString("TotalAyes");
+                        v.totalNoes = res.optString("TotalNoes");
+                        v.totalAbstentions = res.optString("TotalAbstentions");
+                    }
+                } catch (Exception ignore) { }
+                try {
+                    String dateOnly = d.optString("DivisionDate");
+                    if (dateOnly.length() >= 10) dateOnly = dateOnly.substring(0, 10);
+                    v.description = matchDescription(v.subject,
+                            getPlenaryItemsCached(dateOnly, plenaryCache));
+                } catch (Exception ignore) { }
+            }
+
+            for (Mla mla : mlas) {
+                MyVote mv = new MyVote();
+                mv.name = mla.name;
+                mv.party = mla.party;
+                String vote = memberVotes.get(mla.personId);
+                if (vote != null && !vote.isEmpty()) {
+                    mv.vote = vote;
+                } else if (!memberVotes.isEmpty()) {
+                    mv.vote = "ABSENT";
+                } else {
+                    mv.vote = "UNKNOWN";
+                }
+                v.myVotes.add(mv);
+            }
+            out.add(v);
+        }
+        return out;
+    }
+
     private List<JSONObject> getPlenaryItemsCached(String date, Map<String, List<JSONObject>> cache)
             throws Exception {
         List<JSONObject> items = cache.get(date);
