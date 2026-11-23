@@ -23,7 +23,8 @@ The app fetches the NI Assembly open-data services directly from your phone — 
 - **Recent votes** — how *your* MLAs voted (Aye / No / Abstained / Absent), with a **"Bill fine print"** expander (plain-English summary + supporters/critics).
 - **Statement history** — what your MLAs said in the Chamber, linked to the Official Report.
 - **Cast your vote** — give your own Aye/No on recent divisions, then see how your MLAs voted. Your verdicts are logged on-device and, after **3 votes**, the app recommends the party that votes most like you (recalibrating each time, or flagging "no clear match").
-- **Update button** + pull-to-refresh, plus a background refresh every ~3 hours (WorkManager).
+- **Region selector** — switch between NI Assembly, Westminster, Scottish Parliament and Senedd (your pick is remembered across sessions). Only NI Assembly is live for now.
+- **Pull-to-refresh** + a background refresh every ~3 hours (WorkManager).
 - **Offline-friendly** — caches the last snapshot so it opens instantly.
 
 ### Getting the APK
