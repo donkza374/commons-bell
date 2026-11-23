@@ -73,7 +73,7 @@ public class MainActivity extends Activity {
     private Button postcodeBtn;
     private LinearLayout upcomingContainer;
     private Spinner upcomingSpinner;
-    private boolean upcomingMode = true; // true = next 7 days, false = previous 7 days
+    private int upcomingMode = 0; // 0 = none, 1 = next 7 days, 2 = previous 7 days
     private String currentAreaName = "North Antrim";
 
     private DataFetcher.Snapshot currentSnapshot;
@@ -174,15 +174,19 @@ public class MainActivity extends Activity {
 
         ArrayAdapter<String> upAdapter = new ArrayAdapter<>(
                 this, android.R.layout.simple_spinner_item,
-                new String[]{getString(R.string.coming_up_next), getString(R.string.coming_up_prev)});
+                new String[]{getString(R.string.coming_up_none),
+                        getString(R.string.coming_up_next), getString(R.string.coming_up_prev)});
         upAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         upcomingSpinner.setAdapter(upAdapter);
         upcomingSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
-                boolean next = (pos == 0);
-                if (next == upcomingMode) return;
-                upcomingMode = next;
-                loadUpcoming();
+                if (pos == upcomingMode) return;
+                upcomingMode = pos;
+                if (pos == 0) {
+                    upcomingContainer.removeAllViews();
+                } else {
+                    loadUpcoming();
+                }
             }
             @Override public void onNothingSelected(AdapterView<?> parent) { }
         });
@@ -391,12 +395,16 @@ public class MainActivity extends Activity {
     // Upcoming business (My Area) — Assembly-wide, "big votes" pinned on top
     // -------------------------------------------------------------------------
     private void loadUpcoming() {
+        if (upcomingMode == 0) {
+            upcomingContainer.removeAllViews();
+            return;
+        }
         upcomingContainer.removeAllViews();
         upcomingContainer.addView(tv("Loading…", Ui.MUTED, 14f, Typeface.NORMAL));
         new Thread(new Runnable() {
             @Override public void run() {
                 try {
-                    final List<DataFetcher.Business> items = upcomingMode
+                    final List<DataFetcher.Business> items = (upcomingMode == 1)
                             ? new DataFetcher().getUpcomingBusiness(7)
                             : new DataFetcher().getRecentBusiness(7);
                     runOnUiThread(new Runnable() {
@@ -418,7 +426,7 @@ public class MainActivity extends Activity {
     private void renderUpcoming(List<DataFetcher.Business> items) {
         upcomingContainer.removeAllViews();
         if (items == null || items.isEmpty()) {
-            upcomingContainer.addView(tv(upcomingMode
+            upcomingContainer.addView(tv((upcomingMode == 1)
                     ? "Nothing tabled for the coming days yet."
                     : "No business in the last 7 days.", Ui.MUTED, 14f, Typeface.NORMAL));
             return;

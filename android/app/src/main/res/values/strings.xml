@@ -11,6 +11,7 @@
     <string name="cast_your_vote">Cast your vote</string>
     <string name="coming_up">Coming up in the Assembly</string>
     <string name="coming_up_hint">Assembly-wide — all 90 MLAs, including your 5, vote on these.</string>
+    <string name="coming_up_none">None</string>
     <string name="coming_up_next">Next 7 days</string>
     <string name="coming_up_prev">Previous 7 days</string>
 </resources>
