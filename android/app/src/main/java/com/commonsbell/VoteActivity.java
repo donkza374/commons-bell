@@ -265,10 +265,11 @@ public class VoteActivity extends Activity {
             }
         }
 
-        // logged votes
+        // logged votes + how your MLAs voted
         if (!entries.isEmpty()) {
             col.addView(sectionLabel("YOUR LOG"));
-            for (Logged e : entries) col.addView(loggedRow(e));
+            col.addView(tv("Tap a vote to see how your MLAs voted.", Ui.MUTED, 11f, Typeface.NORMAL));
+            for (Logged e : entries) col.addView(loggedCard(e));
         }
 
         // actions
@@ -574,17 +575,66 @@ public class VoteActivity extends Activity {
         return (int) Math.round(s.pct()) + "%";
     }
 
-    private View loggedRow(Logged e) {
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, dp(4), 0, dp(4));
+    private View loggedCard(final Logged e) {
+        final DataFetcher.Vote v = voteMap.get(e.docId);
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(12), dp(10), dp(12), dp(10));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setCornerRadius(dp(10));
+        bg.setStroke(dp(1), Ui.LINE);
+        card.setBackground(bg);
+        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        clp.bottomMargin = dp(8);
+        card.setLayoutParams(clp);
+
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
         String subject = (e.subject == null || e.subject.isEmpty()) ? e.docId : Ui.truncate(e.subject, 44);
         TextView sub = tv(subject, Ui.INK, 13f, Typeface.NORMAL);
         sub.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        row.addView(sub);
-        row.addView(chip(e.choice, "AYE".equals(e.choice) ? AYE_GREEN : NO_RED));
-        return row;
+        header.addView(sub);
+        header.addView(chip(e.choice, "AYE".equals(e.choice) ? AYE_GREEN : NO_RED));
+
+        if (v != null && v.myVotes != null && !v.myVotes.isEmpty()) {
+            final TextView arrow = tv("▸", Ui.MUTED, 14f, Typeface.BOLD);
+            arrow.setPadding(dp(6), 0, 0, 0);
+            header.addView(arrow);
+            card.addView(header);
+
+            final LinearLayout body = new LinearLayout(this);
+            body.setOrientation(LinearLayout.VERTICAL);
+            body.setVisibility(View.GONE);
+            body.setPadding(0, dp(6), 0, 0);
+            for (DataFetcher.MyVote mv : v.myVotes) {
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                row.setPadding(0, dp(2), 0, dp(2));
+                TextView name = tv(mv.name, Ui.partyColor(mv.party), 12f, Typeface.NORMAL);
+                name.setLayoutParams(new LinearLayout.LayoutParams(
+                        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+                row.addView(name);
+                row.addView(chip(Ui.voteLabel(mv.vote), Ui.voteColor(mv.vote)));
+                body.addView(row);
+            }
+            card.addView(body);
+
+            final boolean[] open = {false};
+            header.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View vv) {
+                    open[0] = !open[0];
+                    body.setVisibility(open[0] ? View.VISIBLE : View.GONE);
+                    arrow.setText(open[0] ? "▾" : "▸");
+                }
+            });
+        } else {
+            card.addView(header);
+        }
+        return card;
     }
 
     // ---------------------------------------------------------------------
