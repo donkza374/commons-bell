@@ -19,12 +19,20 @@ import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * "Cast your vote" — go through recent divisions (older -> newer), give your
  * Aye/No verdict, then see how your 5 MLAs actually voted and what was said.
  * Verdicts are stored locally on-device (no server / login yet).
+ *
+ * Also keeps a "vote log" of your previous verdicts and, once you've cast at
+ * least 3 votes, recommends the party whose MLAs most often voted the same
+ * way as you (recomputed live on every new vote). If no party matches you a
+ * majority of the time it flags "no clear match" instead.
  */
 public class VoteActivity extends Activity {
 
@@ -36,7 +44,28 @@ public class VoteActivity extends Activity {
     private static final int C_LINE = Color.parseColor("#E5E7EB");
 
     private LinearLayout list;
+    private LinearLayout recCard;
     private SharedPreferences prefs;
+
+    private DataFetcher.Snapshot snap;
+    private final Map<String, DataFetcher.Vote> voteMap = new HashMap<>();
+
+    private static class Logged {
+        String docId;
+        String subject;
+        String date;
+        String choice;
+    }
+
+    private static class PartyScore {
+        String party;
+        int agree;
+        int comparable;
+
+        double pct() {
+            return comparable == 0 ? 0.0 : agree * 100.0 / comparable;
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -84,12 +113,28 @@ public class VoteActivity extends Activity {
     }
 
     private void buildList() {
-        DataFetcher.Snapshot snap = null;
+        snap = null;
         String json = getIntent().getStringExtra("snapshot");
         if (json != null) snap = DataFetcher.snapshotFromJson(json);
         if (snap == null) snap = Cache.load(this);
 
+        voteMap.clear();
+        if (snap != null && snap.votes != null) {
+            for (DataFetcher.Vote v : snap.votes) {
+                if (v.documentId != null && !"null".equals(v.documentId) && !v.documentId.isEmpty()) {
+                    voteMap.put(v.documentId, v);
+                }
+            }
+        }
+
         list.removeAllViews();
+
+        // vote log + recommendation (rebuilt live as you cast)
+        recCard = card(new LinearLayout(this));
+        recCard.setOrientation(LinearLayout.VERTICAL);
+        list.addView(recCard);
+        renderRecommendation();
+
         if (snap == null || snap.votes == null || snap.votes.isEmpty()) {
             TextView msg = tv("No recent votes to review.", C_MUTED, 14f, Typeface.NORMAL);
             msg.setPadding(dp(8), dp(16), dp(8), dp(16));
@@ -100,12 +145,196 @@ public class VoteActivity extends Activity {
         // older -> newer
         List<DataFetcher.Vote> votes = new ArrayList<>(snap.votes);
         Collections.reverse(votes);
-
         for (DataFetcher.Vote v : votes) {
             list.addView(buildVoteCard(v));
         }
     }
 
+    // ---------------------------------------------------------------------
+    // Vote log + party recommendation
+    // ---------------------------------------------------------------------
+    private List<Logged> getLoggedEntries() {
+        List<Logged> out = new ArrayList<>();
+        Map<String, ?> all = prefs.getAll();
+        for (Map.Entry<String, ?> e : all.entrySet()) {
+            String key = e.getKey();
+            if (key.startsWith("subject_") || key.startsWith("date_")) continue;
+            if (e.getValue() == null) continue;
+            String choice = e.getValue().toString();
+            if (!"AYE".equals(choice) && !"NO".equals(choice)) continue;
+            Logged l = new Logged();
+            l.docId = key;
+            l.choice = choice;
+            l.subject = prefs.getString("subject_" + key, "");
+            l.date = prefs.getString("date_" + key, "");
+            out.add(l);
+        }
+        // newest first
+        Collections.sort(out, new Comparator<Logged>() {
+            @Override public int compare(Logged a, Logged b) {
+                String da = a.date == null ? "" : a.date;
+                String db = b.date == null ? "" : b.date;
+                return db.compareTo(da);
+            }
+        });
+        return out;
+    }
+
+    private void renderRecommendation() {
+        if (recCard == null) return;
+        recCard.removeAllViews();
+
+        recCard.addView(tv("YOUR VOTE LOG", C_MUTED, 11f, Typeface.BOLD));
+
+        final List<Logged> entries = getLoggedEntries();
+        int total = entries.size();
+        recCard.addView(tv("You've cast " + total + (total == 1 ? " vote" : " votes"),
+                C_INK, 15f, Typeface.BOLD));
+
+        // votes with live MLA breakdown (needed to compare against parties)
+        List<Logged> withData = new ArrayList<>();
+        for (Logged e : entries) {
+            if (voteMap.containsKey(e.docId)) withData.add(e);
+        }
+
+        if (withData.size() >= 3) {
+            List<PartyScore> ranked = computeScores(withData);
+            if (ranked.isEmpty() || ranked.get(0).comparable == 0) {
+                recCard.addView(tv("Not enough comparable votes yet.", C_MUTED, 13f, Typeface.NORMAL));
+            } else {
+                PartyScore best = ranked.get(0);
+                if (best.pct() >= 50.0) {
+                    TextView rec = tv("Best match: " + best.party + "  ·  "
+                            + pctStr(best) + " agreement", partyColor(best.party), 14f, Typeface.BOLD);
+                    rec.setPadding(0, dp(6), 0, 0);
+                    recCard.addView(rec);
+                } else {
+                    TextView rec = tv("No clear match", Color.parseColor("#B45309"), 14f, Typeface.BOLD);
+                    rec.setPadding(0, dp(6), 0, 0);
+                    recCard.addView(rec);
+                    recCard.addView(tv("No party agrees with you a majority of the time "
+                            + "— none currently matches how you vote.", C_MUTED, 12f, Typeface.NORMAL));
+                }
+
+                // ranked breakdown (top 5)
+                TextView hdr = tv("How you line up", C_MUTED, 11f, Typeface.BOLD);
+                hdr.setPadding(0, dp(8), 0, dp(4));
+                recCard.addView(hdr);
+                for (PartyScore s : ranked) {
+                    if (s.comparable == 0) continue;
+                    LinearLayout row = new LinearLayout(this);
+                    row.setOrientation(LinearLayout.HORIZONTAL);
+                    row.setGravity(Gravity.CENTER_VERTICAL);
+                    row.setPadding(0, dp(2), 0, dp(2));
+                    TextView name = tv(s.party, partyColor(s.party), 13f, Typeface.NORMAL);
+                    name.setLayoutParams(new LinearLayout.LayoutParams(
+                            0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+                    row.addView(name);
+                    TextView pct = tv(pctStr(s) + " agreement", C_MUTED, 12f, Typeface.NORMAL);
+                    row.addView(pct);
+                    recCard.addView(row);
+                }
+            }
+        } else {
+            int need = 3 - withData.size();
+            recCard.addView(tv("Cast " + need + " more vote" + (need == 1 ? "" : "s")
+                    + " to get a party recommendation.", C_MUTED, 13f, Typeface.NORMAL));
+        }
+
+        // collapsible list of logged votes
+        if (total > 0) {
+            final LinearLayout log = new LinearLayout(this);
+            log.setOrientation(LinearLayout.VERTICAL);
+            log.setPadding(dp(4), dp(4), dp(4), 0);
+            for (Logged e : entries) {
+                log.addView(buildLoggedRow(e));
+            }
+            log.setVisibility(View.GONE);
+            final TextView toggle = tv("▸ See your logged votes", C_ACCENT, 12f, Typeface.BOLD);
+            toggle.setPadding(0, dp(8), 0, 0);
+            recCard.addView(toggle);
+            recCard.addView(log);
+            final boolean[] open = {false};
+            toggle.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View vv) {
+                    open[0] = !open[0];
+                    log.setVisibility(open[0] ? View.VISIBLE : View.GONE);
+                    toggle.setText(open[0] ? "▾ Hide logged votes" : "▸ See your logged votes");
+                }
+            });
+        }
+    }
+
+    private View buildLoggedRow(Logged e) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(4), 0, dp(4));
+        String subject = (e.subject == null || e.subject.isEmpty()) ? e.docId : e.subject;
+        TextView sub = tv(truncate(subject, 60), C_INK, 13f, Typeface.NORMAL);
+        sub.setLayoutParams(new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        row.addView(sub);
+        int col = "AYE".equals(e.choice) ? Color.parseColor("#15803D") : Color.parseColor("#B91C1C");
+        row.addView(chip(e.choice, col));
+        return row;
+    }
+
+    private List<PartyScore> computeScores(List<Logged> withData) {
+        Map<String, PartyScore> byParty = new HashMap<>();
+        for (Logged e : withData) {
+            DataFetcher.Vote v = voteMap.get(e.docId);
+            if (v == null || v.myVotes == null) continue;
+            // tally each party's stance on this division (majority of its MLAs)
+            Map<String, Integer> stance = new HashMap<>(); // party -> +1 AYE, -1 NO, 0 none
+            for (DataFetcher.MyVote mv : v.myVotes) {
+                if (mv.party == null || mv.party.isEmpty()) continue;
+                Integer cur = stance.get(mv.party);
+                if (cur == null) cur = 0;
+                stance.put(mv.party, cur + classify(mv.vote));
+            }
+            int myChoice = "AYE".equals(e.choice) ? 1 : -1;
+            for (Map.Entry<String, Integer> se : stance.entrySet()) {
+                int pos = Integer.signum(se.getValue() == null ? 0 : se.getValue());
+                if (pos == 0) continue; // split/absent => not comparable
+                PartyScore ps = byParty.get(se.getKey());
+                if (ps == null) {
+                    ps = new PartyScore();
+                    ps.party = se.getKey();
+                    byParty.put(se.getKey(), ps);
+                }
+                ps.comparable++;
+                if (pos == myChoice) ps.agree++;
+            }
+        }
+
+        List<PartyScore> ranked = new ArrayList<>(byParty.values());
+        Collections.sort(ranked, new Comparator<PartyScore>() {
+            @Override public int compare(PartyScore a, PartyScore b) {
+                int c = Double.compare(b.pct(), a.pct()); // higher agreement first
+                if (c != 0) return c;
+                return Integer.compare(b.comparable, a.comparable); // tie: more data first
+            }
+        });
+        return ranked;
+    }
+
+    /** +1 = Aye, -1 = No, 0 = absent / abstained / unknown. */
+    private int classify(String vote) {
+        if (vote == null) return 0;
+        String u = vote.toUpperCase();
+        for (String c : AYE_CODES) if (u.contains(c)) return 1;
+        for (String c : NO_CODES) if (u.contains(c)) return -1;
+        return 0;
+    }
+
+    private String pctStr(PartyScore s) {
+        return (int) Math.round(s.pct()) + "%";
+    }
+
+    // ---------------------------------------------------------------------
+    // Vote cards
+    // ---------------------------------------------------------------------
     private LinearLayout buildVoteCard(final DataFetcher.Vote v) {
         final LinearLayout card = card(new LinearLayout(this));
         card.setOrientation(LinearLayout.VERTICAL);
@@ -148,11 +377,11 @@ public class VoteActivity extends Activity {
 
             Button aye = voteButton("AYE", Color.parseColor("#15803D"));
             aye.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View vv) { cast(docId, "AYE", v, resultArea, card); }
+                @Override public void onClick(View vv) { cast(docId, "AYE", v, resultArea); }
             });
             Button no = voteButton("NO", Color.parseColor("#B91C1C"));
             no.setOnClickListener(new View.OnClickListener() {
-                @Override public void onClick(View vv) { cast(docId, "NO", v, resultArea, card); }
+                @Override public void onClick(View vv) { cast(docId, "NO", v, resultArea); }
             });
             btns.addView(aye);
             LinearLayout gap = new LinearLayout(this);
@@ -176,15 +405,19 @@ public class VoteActivity extends Activity {
     }
 
     private void cast(String docId, String choice, DataFetcher.Vote v,
-                      LinearLayout resultArea, LinearLayout card) {
+                      LinearLayout resultArea) {
         if (!docId.isEmpty()) {
-            prefs.edit().putString(docId, choice).apply();
+            SharedPreferences.Editor ed = prefs.edit().putString(docId, choice);
+            if (v.subject != null) ed.putString("subject_" + docId, v.subject);
+            if (v.date != null) ed.putString("date_" + docId, v.date);
+            ed.apply();
         }
         resultArea.removeAllViews();
         resultArea.addView(tv("You voted " + choice,
                 choice.equals("AYE") ? Color.parseColor("#15803D") : Color.parseColor("#B91C1C"),
                 13f, Typeface.BOLD));
         fillResults(v, resultArea);
+        renderRecommendation(); // keep the log/recommendation live
     }
 
     private void fillResults(DataFetcher.Vote v, LinearLayout resultArea) {
