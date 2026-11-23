@@ -8,6 +8,7 @@
 
     <!-- Header -->
     <LinearLayout
+        android:id="@+id/bill_header"
         android:orientation="horizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

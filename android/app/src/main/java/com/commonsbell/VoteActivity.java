@@ -75,6 +75,7 @@ public class VoteActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Ui.setDark(getSharedPreferences("commonsbell", Context.MODE_PRIVATE).getBoolean("dark", false));
         prefs = getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         constituencyId = getSharedPreferences("commonsbell", Context.MODE_PRIVATE)
                 .getInt("constituency_id", DataFetcher.DEFAULT_CONSTITUENCY_ID);
@@ -95,13 +96,13 @@ public class VoteActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(Color.parseColor("#F6F7F9"));
+        root.setBackgroundColor(Ui.BG);
 
         // header
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setBackgroundColor(Ui.ACCENT);
+        header.setBackgroundColor(Ui.BRAND);
         header.setPadding(dp(16), dp(14), dp(16), dp(14));
         TextView back = tv("‹ Back", Color.WHITE, 16f, Typeface.BOLD);
         back.setOnClickListener(new View.OnClickListener() {
@@ -123,6 +124,15 @@ public class VoteActivity extends Activity {
         });
         header.addView(resetBtn);
         root.addView(header);
+
+        root.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+            @Override public android.view.WindowInsets onApplyWindowInsets(
+                    View v, android.view.WindowInsets insets) {
+                int top = insets.getSystemWindowInsetTop();
+                header.setPadding(dp(16), dp(14) + top, dp(16), dp(14));
+                return insets;
+            }
+        });
 
         body = new LinearLayout(this);
         body.setOrientation(LinearLayout.VERTICAL);
@@ -319,7 +329,7 @@ public class VoteActivity extends Activity {
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(20), dp(20), dp(20), dp(20));
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.WHITE);
+        bg.setColor(Ui.CARD);
         bg.setCornerRadius(dp(16));
         bg.setStroke(dp(1), Ui.LINE);
         card.setBackground(bg);
@@ -592,7 +602,7 @@ public class VoteActivity extends Activity {
         card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(12), dp(10), dp(12), dp(10));
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.WHITE);
+        bg.setColor(Ui.CARD);
         bg.setCornerRadius(dp(10));
         bg.setStroke(dp(1), Ui.LINE);
         card.setBackground(bg);
@@ -701,7 +711,7 @@ public class VoteActivity extends Activity {
         b.setTextSize(15);
         b.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Ui.ACCENT);
+        bg.setColor(Ui.BRAND);
         bg.setCornerRadius(dp(12));
         b.setBackground(bg);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(240), dp(52));
@@ -716,7 +726,7 @@ public class VoteActivity extends Activity {
         b.setTextColor(Ui.ACCENT);
         b.setTextSize(14);
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.WHITE);
+        bg.setColor(Ui.CARD);
         bg.setStroke(dp(1), Ui.ACCENT);
         bg.setCornerRadius(dp(10));
         b.setBackground(bg);

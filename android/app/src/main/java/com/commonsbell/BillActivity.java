@@ -25,6 +25,17 @@ public class BillActivity extends Activity {
                 .getBoolean("dark", false));
         findViewById(R.id.bill_root).setBackgroundColor(Ui.BG);
 
+        final View header = findViewById(R.id.bill_header);
+        findViewById(R.id.bill_root).setOnApplyWindowInsetsListener(
+                new View.OnApplyWindowInsetsListener() {
+            @Override public android.view.WindowInsets onApplyWindowInsets(
+                    View v, android.view.WindowInsets insets) {
+                int top = insets.getSystemWindowInsetTop();
+                header.setPadding(dp(12), dp(12) + top, dp(12), dp(12));
+                return insets;
+            }
+        });
+
         String title = getIntent().getStringExtra("title");
         final String type = getIntent().getStringExtra("type");
         final String date = getIntent().getStringExtra("date");

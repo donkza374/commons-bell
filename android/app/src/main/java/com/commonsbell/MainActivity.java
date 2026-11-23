@@ -102,6 +102,8 @@ public class MainActivity extends Activity {
     private Set<String> watchlistMlas = new HashSet<>();
     private Set<String> watchlistBills = new HashSet<>();
     private boolean dark = false;
+    private View header;
+    private TextView yourAreaLabel;
 
     private DataFetcher.Snapshot currentSnapshot;
     private Map<String, MemberBio.Info> memberBio;
@@ -145,11 +147,14 @@ public class MainActivity extends Activity {
         root = findViewById(R.id.root);
         pickerRow = findViewById(R.id.picker_row);
         postcodeRow = findViewById(R.id.postcode_row);
+        header = findViewById(R.id.header);
+        yourAreaLabel = findViewById(R.id.your_area_label);
 
         // theme, watchlist, and secondary pages
         dark = getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean(KEY_DARK, false);
         Ui.setDark(dark);
         applyTheme();
+        applyInsets();
         watchlistMlas = new HashSet<>(getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .getStringSet(KEY_WATCHLIST_MLAS, new HashSet<String>()));
         watchlistBills = new HashSet<>(getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -257,7 +262,7 @@ public class MainActivity extends Activity {
             }
             @Override public View getDropDownView(int position, View convertView, ViewGroup parent) {
                 TextView tv = (TextView) super.getDropDownView(position, convertView, parent);
-                tv.setTextColor(Ui.INK);
+                tv.setTextColor(Color.parseColor("#1A2233"));
                 return tv;
             }
         };
@@ -320,8 +325,19 @@ public class MainActivity extends Activity {
             d.name = "North Antrim";
             constituencies.add(d);
         }
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(
-                this, android.R.layout.simple_spinner_item, names);
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(
+                this, android.R.layout.simple_spinner_item, names) {
+            @Override public View getView(int position, View convertView, ViewGroup parent) {
+                TextView tv = (TextView) super.getView(position, convertView, parent);
+                tv.setTextColor(Ui.INK);
+                return tv;
+            }
+            @Override public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                TextView tv = (TextView) super.getDropDownView(position, convertView, parent);
+                tv.setTextColor(Color.parseColor("#1A2233"));
+                return tv;
+            }
+        };
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinner.setAdapter(adapter);
 
@@ -486,10 +502,29 @@ public class MainActivity extends Activity {
         navBar.setBackgroundColor(Ui.CARD);
         pickerRow.setBackgroundColor(Ui.CARD);
         postcodeRow.setBackgroundColor(Ui.CARD);
+        yourAreaLabel.setTextColor(Ui.MUTED);
+        postcodeInput.setTextColor(Ui.INK);
+        postcodeInput.setHintTextColor(Ui.MUTED);
+    }
+
+    private void applyInsets() {
+        if (android.os.Build.VERSION.SDK_INT < 21) return;
+        final View h = header;
+        root.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+            @Override public android.view.WindowInsets onApplyWindowInsets(
+                    View v, android.view.WindowInsets insets) {
+                int top = insets.getSystemWindowInsetTop();
+                int bottom = insets.getSystemWindowInsetBottom();
+                h.setPadding(dp(16), dp(16) + top, dp(16), dp(16));
+                navBar.setPadding(0, dp(6), 0, dp(6) + bottom);
+                return insets;
+            }
+        });
     }
 
     private void rerenderAll() {
         applyTheme();
+        populateSpinner();
         buildSettingsPage();
         buildSearchPage();
         if (currentSnapshot != null) render(currentSnapshot);
@@ -1776,7 +1811,7 @@ public class MainActivity extends Activity {
         Button b = new Button(this);
         b.setText(label);
         b.setTextColor(Color.WHITE);
-        b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#134E4A")));
+        b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Ui.BRAND));
         return b;
     }
 

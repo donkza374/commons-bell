@@ -12,6 +12,7 @@ public final class Ui {
 
     // Accent / text / surface palette. Mutable so dark mode can re-theme at runtime.
     public static int ACCENT = Color.parseColor("#134E4A");
+    public static final int BRAND = Color.parseColor("#134E4A"); // header/button fill, never re-themed
     public static int INK = Color.parseColor("#1A2233");
     public static int MUTED = Color.parseColor("#6B7280");
     public static int LINE = Color.parseColor("#E5E7EB");
