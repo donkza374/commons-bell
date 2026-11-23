@@ -23,14 +23,6 @@
             android:textColor="#FFFFFF"
             android:textSize="18sp"
             android:textStyle="bold" />
-
-        <Button
-            android:id="@+id/update_btn"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/update"
-            android:textColor="@color/accent"
-            android:backgroundTint="#FFFFFF" />
     </LinearLayout>
 
     <!-- Shared progress + status (refresh feedback) -->

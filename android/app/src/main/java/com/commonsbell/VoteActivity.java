@@ -111,6 +111,17 @@ public class VoteActivity extends Activity {
         TextView title = tv("Cast your vote", Color.WHITE, 17f, Typeface.BOLD);
         title.setPadding(dp(16), 0, 0, 0);
         header.addView(title);
+
+        View spacer = new View(this);
+        spacer.setLayoutParams(new LinearLayout.LayoutParams(0, 1, 1f));
+        header.addView(spacer);
+
+        TextView resetBtn = tv("Reset", Color.WHITE, 14f, Typeface.BOLD);
+        resetBtn.setPadding(dp(12), dp(8), dp(4), dp(8));
+        resetBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { reset(); }
+        });
+        header.addView(resetBtn);
         root.addView(header);
 
         body = new LinearLayout(this);

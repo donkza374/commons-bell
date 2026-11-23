@@ -52,7 +52,6 @@ public class MainActivity extends Activity {
 
     private TextView statusView;
     private ProgressBar progress;
-    private Button updateBtn;
     private Spinner spinner;
     private SwipeRefreshLayout swipe;
     private LinearLayout mlasContainer;
@@ -91,7 +90,6 @@ public class MainActivity extends Activity {
 
         statusView = findViewById(R.id.status);
         progress = findViewById(R.id.progress);
-        updateBtn = findViewById(R.id.update_btn);
         spinner = findViewById(R.id.constituency_spinner);
         swipe = findViewById(R.id.swipe);
         mlasContainer = findViewById(R.id.mlas_container);
@@ -111,10 +109,6 @@ public class MainActivity extends Activity {
 
         currentConstituencyId = getSharedPreferences(PREFS, Context.MODE_PRIVATE)
                 .getInt(KEY_CONSTITUENCY, DataFetcher.DEFAULT_CONSTITUENCY_ID);
-
-        updateBtn.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { refresh(false); loadUpcoming(); }
-        });
 
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
@@ -290,12 +284,8 @@ public class MainActivity extends Activity {
 
     private void setLoading(boolean loading) {
         progress.setVisibility(loading ? View.VISIBLE : View.GONE);
-        updateBtn.setEnabled(!loading);
         if (loading) {
-            updateBtn.setText("Updating…");
             setStatus("Refreshing…", false);
-        } else {
-            updateBtn.setText(R.string.update);
         }
     }
 
