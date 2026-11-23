@@ -196,10 +196,8 @@ public class DataFetcher {
         return out;
     }
 
-    /** Bills & motions currently in progress (recent Order Paper business). */
-    public List<Business> getBillsInProgress() throws Exception {
-        LocalDate end = LocalDate.now();
-        LocalDate start = end.minusDays(21);
+    /** Bills & motions tabled between two dates (past or future Order Paper). */
+    private List<Business> getBusinessBetween(LocalDate start, LocalDate end) throws Exception {
         List<Business> out = new ArrayList<>();
         JSONArray list = arr(new JSONObject(get(BASE
                         + "/plenary.asmx/GetPlenaryItemsPlenaryDate_JSON?startDate=" + start + "&endDate=" + end)),
@@ -225,6 +223,24 @@ public class DataFetcher {
             out.add(b);
         }
         return out;
+    }
+
+    /** Bills & motions currently in progress (recent Order Paper business). */
+    public List<Business> getBillsInProgress() throws Exception {
+        LocalDate end = LocalDate.now();
+        return getBusinessBetween(end.minusDays(21), end);
+    }
+
+    /** Bills & motions scheduled for the next N days (future Order Paper). */
+    public List<Business> getUpcomingBusiness(int daysAhead) throws Exception {
+        LocalDate start = LocalDate.now();
+        return getBusinessBetween(start, start.plusDays(daysAhead));
+    }
+
+    /** Bills & motions tabled in the last N days. */
+    public List<Business> getRecentBusiness(int daysBack) throws Exception {
+        LocalDate end = LocalDate.now();
+        return getBusinessBetween(end.minusDays(daysBack), end);
     }
 
     /** Enrich MLAs with photo URLs + contact details (each fetched in one call). */

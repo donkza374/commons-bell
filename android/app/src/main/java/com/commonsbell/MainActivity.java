@@ -71,6 +71,9 @@ public class MainActivity extends Activity {
     private Button castVoteBtn;
     private EditText postcodeInput;
     private Button postcodeBtn;
+    private LinearLayout upcomingContainer;
+    private Spinner upcomingSpinner;
+    private boolean upcomingMode = true; // true = next 7 days, false = previous 7 days
     private String currentAreaName = "North Antrim";
 
     private DataFetcher.Snapshot currentSnapshot;
@@ -101,6 +104,8 @@ public class MainActivity extends Activity {
         castVoteBtn = findViewById(R.id.cast_vote_btn);
         postcodeInput = findViewById(R.id.postcode_input);
         postcodeBtn = findViewById(R.id.postcode_btn);
+        upcomingContainer = findViewById(R.id.upcoming_container);
+        upcomingSpinner = findViewById(R.id.upcoming_spinner);
 
         memberBio = MemberBio.load(this);
 
@@ -108,7 +113,7 @@ public class MainActivity extends Activity {
                 .getInt(KEY_CONSTITUENCY, DataFetcher.DEFAULT_CONSTITUENCY_ID);
 
         updateBtn.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { refresh(false); }
+            @Override public void onClick(View v) { refresh(false); loadUpcoming(); }
         });
 
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -127,7 +132,7 @@ public class MainActivity extends Activity {
         });
 
         swipe.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
-            @Override public void onRefresh() { refresh(true); }
+            @Override public void onRefresh() { refresh(true); loadUpcoming(); }
         });
 
         scheduleBackgroundRefresh();
@@ -167,8 +172,24 @@ public class MainActivity extends Activity {
             }
         });
 
+        ArrayAdapter<String> upAdapter = new ArrayAdapter<>(
+                this, android.R.layout.simple_spinner_item,
+                new String[]{getString(R.string.coming_up_next), getString(R.string.coming_up_prev)});
+        upAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        upcomingSpinner.setAdapter(upAdapter);
+        upcomingSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
+                boolean next = (pos == 0);
+                if (next == upcomingMode) return;
+                upcomingMode = next;
+                loadUpcoming();
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) { }
+        });
+
         showHome();
         loadHomeData();
+        loadUpcoming();
     }
 
     // -------------------------------------------------------------------------
@@ -367,6 +388,60 @@ public class MainActivity extends Activity {
     }
 
     // -------------------------------------------------------------------------
+    // Upcoming business (My Area) — Assembly-wide, "big votes" pinned on top
+    // -------------------------------------------------------------------------
+    private void loadUpcoming() {
+        upcomingContainer.removeAllViews();
+        upcomingContainer.addView(tv("Loading…", Ui.MUTED, 14f, Typeface.NORMAL));
+        new Thread(new Runnable() {
+            @Override public void run() {
+                try {
+                    final List<DataFetcher.Business> items = upcomingMode
+                            ? new DataFetcher().getUpcomingBusiness(7)
+                            : new DataFetcher().getRecentBusiness(7);
+                    runOnUiThread(new Runnable() {
+                        @Override public void run() { renderUpcoming(items); }
+                    });
+                } catch (final Exception e) {
+                    runOnUiThread(new Runnable() {
+                        @Override public void run() {
+                            upcomingContainer.removeAllViews();
+                            upcomingContainer.addView(tv("Couldn't load upcoming business.",
+                                    Ui.MUTED, 14f, Typeface.NORMAL));
+                        }
+                    });
+                }
+            }
+        }).start();
+    }
+
+    private void renderUpcoming(List<DataFetcher.Business> items) {
+        upcomingContainer.removeAllViews();
+        if (items == null || items.isEmpty()) {
+            upcomingContainer.addView(tv(upcomingMode
+                    ? "Nothing tabled for the coming days yet."
+                    : "No business in the last 7 days.", Ui.MUTED, 14f, Typeface.NORMAL));
+            return;
+        }
+        final List<DataFetcher.Business> list = new ArrayList<>(items);
+        Collections.sort(list, new java.util.Comparator<DataFetcher.Business>() {
+            @Override public int compare(DataFetcher.Business a, DataFetcher.Business b) {
+                boolean ba = Ui.isBigVote(a.title, a.type,
+                        BillKnowledge.lookup(MainActivity.this, a.title));
+                boolean bb = Ui.isBigVote(b.title, b.type,
+                        BillKnowledge.lookup(MainActivity.this, b.title));
+                if (ba != bb) return ba ? -1 : 1;
+                String da = a.date == null ? "" : a.date;
+                String db = b.date == null ? "" : b.date;
+                return da.compareTo(db);
+            }
+        });
+        for (DataFetcher.Business b : list) {
+            upcomingContainer.addView(buildBusinessCard(b, true));
+        }
+    }
+
+    // -------------------------------------------------------------------------
     // Home page
     // -------------------------------------------------------------------------
     private void loadHomeData() {
@@ -429,7 +504,7 @@ public class MainActivity extends Activity {
             return;
         }
         for (int i = 0; i < billsShownCount && i < homeBills.size(); i++) {
-            billsContainer.addView(buildBusinessCard(homeBills.get(i)));
+            billsContainer.addView(buildBusinessCard(homeBills.get(i), false));
         }
         if (billsShownCount < homeBills.size()) {
             final int remaining = homeBills.size() - billsShownCount;
@@ -569,7 +644,7 @@ public class MainActivity extends Activity {
         return card;
     }
 
-    private LinearLayout buildBusinessCard(final DataFetcher.Business b) {
+    private LinearLayout buildBusinessCard(final DataFetcher.Business b, boolean highlight) {
         LinearLayout card = card();
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
@@ -578,16 +653,21 @@ public class MainActivity extends Activity {
         left.setOrientation(LinearLayout.VERTICAL);
         left.setLayoutParams(new LinearLayout.LayoutParams(
                 0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        final BillKnowledge.BillInfo bi = BillKnowledge.lookup(this,
+                (b.title != null && !b.title.isEmpty()) ? b.title : b.text);
+
         left.addView(tv(b.title, Ui.INK, 14f, Typeface.BOLD));
         String sub = (b.type == null || b.type.isEmpty()) ? "" : b.type;
         if (b.date != null && !b.date.isEmpty()) {
             sub = sub.isEmpty() ? Ui.formatDate(b.date) : sub + "  ·  " + Ui.formatDate(b.date);
         }
         if (!sub.isEmpty()) left.addView(tv(sub, Ui.MUTED, 12f, Typeface.NORMAL));
+        if (highlight && Ui.isBigVote(
+                (b.title != null && !b.title.isEmpty()) ? b.title : "", b.type, bi)) {
+            left.addView(badge("★ Big vote", Color.parseColor("#B45309")));
+        }
         header.addView(left);
 
-        final BillKnowledge.BillInfo bi = BillKnowledge.lookup(this,
-                (b.title != null && !b.title.isEmpty()) ? b.title : b.text);
         boolean hasBody = (b.text != null && !b.text.isEmpty()) || bi != null;
 
         if (hasBody) {
@@ -891,6 +971,9 @@ public class MainActivity extends Activity {
             card.addView(tv(v.subject, Ui.INK, 14f, Typeface.BOLD));
             card.addView(tv(v.date + (v.type != null && !v.type.isEmpty()
                     ? "  ·  " + v.type : ""), Ui.MUTED, 12f, Typeface.NORMAL));
+            if (Ui.isHighTurnout(v)) {
+                card.addView(badge("★ High turnout", Color.parseColor("#1F4E79")));
+            }
 
             for (DataFetcher.MyVote mv : v.myVotes) {
                 LinearLayout row = new LinearLayout(this);
@@ -1041,6 +1124,15 @@ public class MainActivity extends Activity {
         bg.setColor(color);
         bg.setCornerRadius(dp(10));
         t.setBackground(bg);
+        return t;
+    }
+
+    private TextView badge(String label, int color) {
+        TextView t = chip(label, color);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(4);
+        t.setLayoutParams(lp);
         return t;
     }
 

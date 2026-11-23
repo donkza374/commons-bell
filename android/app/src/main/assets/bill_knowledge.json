@@ -14,12 +14,14 @@
     },
     {
       "keywords": ["Flags and Emblems", "Flags and Emblems Bill"],
+      "big": true,
       "summary": "Sets out rules around the display of flags and emblems on public property and shared spaces.",
       "benefits": ["Supporters say clear rules reduce tension and confusion about what can be displayed where."],
       "negatives": ["Critics argue it is difficult to enforce neutrally and risks inflaming divisions."]
     },
     {
       "keywords": ["Petroleum Exploration", "Petroleum Exploration and Licensing"],
+      "big": true,
       "summary": "Removes the legal basis for onshore oil and gas exploration and fracking in Northern Ireland.",
       "benefits": ["Supporters say it protects the environment and rules out fracking."],
       "negatives": ["Critics argue it closes off a possible domestic energy and economic option."]

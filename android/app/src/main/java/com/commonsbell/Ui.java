@@ -92,4 +92,36 @@ public final class Ui {
             return iso;
         }
     }
+
+    // ---- "big vote" / turnout classification ---------------------------------
+
+    private static final String[] BUDGET_TERMS = {
+            "budget", "appropriation", "public expenditure", "fiscal"
+    };
+
+    public static boolean isBudget(String title) {
+        if (title == null) return false;
+        String t = title.toLowerCase();
+        for (String s : BUDGET_TERMS) if (t.contains(s)) return true;
+        return false;
+    }
+
+    /** A "big" upcoming item: a Bill, budget-related, or curated high-impact. */
+    public static boolean isBigVote(String title, String type, BillKnowledge.BillInfo bi) {
+        if (bi != null && bi.big) return true;
+        if (type != null && type.toLowerCase().contains("bill")) return true;
+        return isBudget(title);
+    }
+
+    /** High turnout = roughly 90%+ of the 90 MLAs recorded a vote (not absent). */
+    public static boolean isHighTurnout(DataFetcher.Vote v) {
+        if (v == null) return false;
+        int participated = parseInt(v.totalAyes) + parseInt(v.totalNoes) + parseInt(v.totalAbstentions);
+        return participated >= 81;
+    }
+
+    private static int parseInt(String s) {
+        if (s == null) return 0;
+        try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return 0; }
+    }
 }

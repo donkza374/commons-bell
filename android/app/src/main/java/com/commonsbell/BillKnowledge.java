@@ -20,6 +20,7 @@ public class BillKnowledge {
         public String summary;
         public List<String> benefits;
         public List<String> negatives;
+        public boolean big;
     }
 
     private static List<Entry> cache;
@@ -57,6 +58,7 @@ public class BillKnowledge {
                     bi.summary = o.optString("summary");
                     bi.benefits = new ArrayList<>();
                     bi.negatives = new ArrayList<>();
+                    bi.big = o.optBoolean("big", false);
                     JSONArray b = o.optJSONArray("benefits");
                     if (b != null) for (int j = 0; j < b.length(); j++) bi.benefits.add(b.optString(j));
                     JSONArray ng = o.optJSONArray("negatives");
