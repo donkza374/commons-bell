@@ -13,4 +13,8 @@
     <string name="coming_up_none">None</string>
     <string name="coming_up_next">Next 7 days</string>
     <string name="coming_up_prev">Previous 7 days</string>
+    <string name="region_ni">NI Assembly</string>
+    <string name="region_westminster">Westminster</string>
+    <string name="region_scotland">Scottish Parliament</string>
+    <string name="region_wales">Senedd</string>
 </resources>

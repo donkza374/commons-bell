@@ -23,6 +23,12 @@
             android:textColor="#FFFFFF"
             android:textSize="18sp"
             android:textStyle="bold" />
+
+        <Spinner
+            android:id="@+id/region_spinner"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp" />
     </LinearLayout>
 
     <!-- Shared progress + status (refresh feedback) -->
@@ -226,10 +232,30 @@
                 </ScrollView>
             </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
         </LinearLayout>
+
+        <!-- Placeholder when a non-NI legislature is selected -->
+        <LinearLayout
+            android:id="@+id/region_placeholder"
+            android:orientation="vertical"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:visibility="gone"
+            android:padding="24dp">
+
+            <TextView
+                android:id="@+id/region_placeholder_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textSize="16sp"
+                android:textColor="@color/muted" />
+        </LinearLayout>
     </FrameLayout>
 
     <!-- Bottom navigation -->
     <LinearLayout
+        android:id="@+id/nav_bar"
         android:orientation="horizontal"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

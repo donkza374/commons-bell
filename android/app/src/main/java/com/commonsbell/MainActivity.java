@@ -49,6 +49,7 @@ public class MainActivity extends Activity {
 
     private static final String PREFS = "commonsbell";
     private static final String KEY_CONSTITUENCY = "constituency_id";
+    private static final String KEY_REGION = "region";
 
     private TextView statusView;
     private ProgressBar progress;
@@ -73,6 +74,11 @@ public class MainActivity extends Activity {
     private LinearLayout upcomingContainer;
     private Spinner upcomingSpinner;
     private int upcomingMode = 0; // 0 = none, 1 = next 7 days, 2 = previous 7 days
+    private Spinner regionSpinner;
+    private View regionPlaceholder;
+    private TextView placeholderText;
+    private View navBar;
+    private int region = 0; // 0 = NI, 1 = Westminster, 2 = Scottish Parliament, 3 = Senedd
     private String currentAreaName = "North Antrim";
 
     private DataFetcher.Snapshot currentSnapshot;
@@ -104,6 +110,10 @@ public class MainActivity extends Activity {
         postcodeBtn = findViewById(R.id.postcode_btn);
         upcomingContainer = findViewById(R.id.upcoming_container);
         upcomingSpinner = findViewById(R.id.upcoming_spinner);
+        regionSpinner = findViewById(R.id.region_spinner);
+        regionPlaceholder = findViewById(R.id.region_placeholder);
+        placeholderText = findViewById(R.id.region_placeholder_text);
+        navBar = findViewById(R.id.nav_bar);
 
         memberBio = MemberBio.load(this);
 
@@ -185,9 +195,38 @@ public class MainActivity extends Activity {
             @Override public void onNothingSelected(AdapterView<?> parent) { }
         });
 
-        showHome();
-        loadHomeData();
-        loadUpcoming();
+        // region picker (persisted)
+        region = getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt(KEY_REGION, 0);
+        String[] regions = new String[]{
+                getString(R.string.region_ni), getString(R.string.region_westminster),
+                getString(R.string.region_scotland), getString(R.string.region_wales)};
+        ArrayAdapter<String> regionAdapter = new ArrayAdapter<String>(
+                this, android.R.layout.simple_spinner_item, regions) {
+            @Override public View getView(int position, View convertView, ViewGroup parent) {
+                TextView tv = (TextView) super.getView(position, convertView, parent);
+                tv.setTextColor(Color.WHITE);
+                return tv;
+            }
+            @Override public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                TextView tv = (TextView) super.getDropDownView(position, convertView, parent);
+                tv.setTextColor(Ui.INK);
+                return tv;
+            }
+        };
+        regionAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        regionSpinner.setAdapter(regionAdapter);
+        regionSpinner.setSelection(region, false);
+        regionSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
+                if (pos == region) return;
+                region = pos;
+                getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putInt(KEY_REGION, region).apply();
+                applyRegion();
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) { }
+        });
+
+        applyRegion();
     }
 
     // -------------------------------------------------------------------------
@@ -333,6 +372,30 @@ public class MainActivity extends Activity {
         homePage.setVisibility(View.GONE);
         areaPage.setVisibility(View.VISIBLE);
         setNav(false);
+    }
+
+    private void applyRegion() {
+        boolean ni = (region == 0);
+        regionPlaceholder.setVisibility(ni ? View.GONE : View.VISIBLE);
+        navBar.setVisibility(ni ? View.VISIBLE : View.GONE);
+        if (ni) {
+            showHome();
+            loadHomeData();
+            loadUpcoming();
+        } else {
+            homePage.setVisibility(View.GONE);
+            areaPage.setVisibility(View.GONE);
+            placeholderText.setText(regionName() + " is coming soon.\n\nPick NI Assembly to browse Stormont for now.");
+        }
+    }
+
+    private String regionName() {
+        switch (region) {
+            case 1: return "Westminster";
+            case 2: return "Scottish Parliament";
+            case 3: return "Senedd";
+            default: return "NI Assembly";
+        }
     }
 
     private void setNav(boolean homeActive) {
