@@ -9,18 +9,23 @@ import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
-import android.media.Ringtone;
-import android.media.RingtoneManager;
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioTrack;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -56,10 +61,16 @@ public class MainActivity extends Activity {
     private LinearLayout homeContainer;
     private LinearLayout homeFeed;
     private boolean bellRung = false;
+    private List<DataFetcher.Business> homeBills = new ArrayList<>();
+    private int billsShownCount = 0;
+    private LinearLayout billsContainer;
+    private static final int BILLS_PAGE = 12;
     private View areaPage;
     private TextView navHome;
     private TextView navArea;
     private Button castVoteBtn;
+    private EditText postcodeInput;
+    private Button postcodeBtn;
     private String currentAreaName = "North Antrim";
 
     private DataFetcher.Snapshot currentSnapshot;
@@ -88,6 +99,8 @@ public class MainActivity extends Activity {
         navHome = findViewById(R.id.nav_home);
         navArea = findViewById(R.id.nav_area);
         castVoteBtn = findViewById(R.id.cast_vote_btn);
+        postcodeInput = findViewById(R.id.postcode_input);
+        postcodeBtn = findViewById(R.id.postcode_btn);
 
         memberBio = MemberBio.load(this);
 
@@ -118,6 +131,7 @@ public class MainActivity extends Activity {
         });
 
         scheduleBackgroundRefresh();
+        requestNotificationPermission();
 
         // show cached data immediately (if it matches the selected area), then refresh
         DataFetcher.Snapshot cached = Cache.load(this);
@@ -138,6 +152,19 @@ public class MainActivity extends Activity {
 
         castVoteBtn.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { openCastVote(); }
+        });
+
+        postcodeBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { doPostcodeLookup(); }
+        });
+        postcodeInput.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override public boolean onEditorAction(TextView tv, int actionId, KeyEvent event) {
+                if (actionId == EditorInfo.IME_ACTION_GO || actionId == EditorInfo.IME_ACTION_DONE) {
+                    doPostcodeLookup();
+                    return true;
+                }
+                return false;
+            }
         });
 
         showHome();
@@ -261,6 +288,21 @@ public class MainActivity extends Activity {
                 RefreshWorker.class, 3, TimeUnit.HOURS).build();
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(
                 "refresh", ExistingPeriodicWorkPolicy.KEEP, req);
+
+        PeriodicWorkRequest watch = new PeriodicWorkRequest.Builder(
+                DivisionWatchWorker.class, 15, TimeUnit.MINUTES).build();
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                "division_watch", ExistingPeriodicWorkPolicy.KEEP, watch);
+    }
+
+    private void requestNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS)
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(
+                        new String[]{android.Manifest.permission.POST_NOTIFICATIONS}, 100);
+            }
+        }
     }
 
     // -------------------------------------------------------------------------
@@ -293,6 +335,35 @@ public class MainActivity extends Activity {
             i.putExtra("snapshot", DataFetcher.snapshotToJson(s).toString());
         }
         startActivity(i);
+    }
+
+    private void doPostcodeLookup() {
+        String pc = postcodeInput.getText() == null ? "" : postcodeInput.getText().toString().trim();
+        try {
+            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) imm.hideSoftInputFromWindow(postcodeInput.getWindowToken(), 0);
+        } catch (Exception ignored) { }
+
+        if (pc.isEmpty()) {
+            setStatus("Enter a postcode first (e.g. BT53 6QP).", true);
+            return;
+        }
+        String name = PostcodeLookup.constituencyFor(this, pc);
+        if (name == null) {
+            setStatus("Couldn't match that postcode. Pick your area from the list above.", true);
+            return;
+        }
+        int idx = -1;
+        for (int i = 0; i < constituencies.size(); i++) {
+            DataFetcher.Constituency c = constituencies.get(i);
+            if (name.equalsIgnoreCase(c.name)) { idx = i; break; }
+        }
+        if (idx < 0) {
+            setStatus("Area found (" + name + ") but not in the picker list. Choose it from the dropdown.", true);
+            return;
+        }
+        spinner.setSelection(idx, true);
+        setStatus("Area set to " + name + " (best guess — confirm above).", false);
     }
 
     // -------------------------------------------------------------------------
@@ -343,14 +414,42 @@ public class MainActivity extends Activity {
         }
 
         homeFeed.addView(sectionHeader("BILLS IN PROGRESS"));
-        if (bills == null || bills.isEmpty()) {
-            homeFeed.addView(tv("No bills in progress found.", Ui.MUTED, 14f, Typeface.NORMAL));
-        } else {
-            int shown = 0;
-            for (DataFetcher.Business b : bills) {
-                if (shown++ >= 12) break;
-                homeFeed.addView(buildBusinessCard(b));
-            }
+        billsContainer = new LinearLayout(this);
+        billsContainer.setOrientation(LinearLayout.VERTICAL);
+        homeFeed.addView(billsContainer);
+        homeBills = (bills == null) ? new ArrayList<DataFetcher.Business>() : new ArrayList<>(bills);
+        billsShownCount = Math.min(BILLS_PAGE, homeBills.size());
+        fillBillsContainer();
+    }
+
+    private void fillBillsContainer() {
+        billsContainer.removeAllViews();
+        if (homeBills.isEmpty()) {
+            billsContainer.addView(tv("No bills in progress found.", Ui.MUTED, 14f, Typeface.NORMAL));
+            return;
+        }
+        for (int i = 0; i < billsShownCount && i < homeBills.size(); i++) {
+            billsContainer.addView(buildBusinessCard(homeBills.get(i)));
+        }
+        if (billsShownCount < homeBills.size()) {
+            final int remaining = homeBills.size() - billsShownCount;
+            Button more = new Button(this);
+            more.setText("Load more bills (" + remaining + " more)");
+            more.setTextColor(Ui.ACCENT);
+            GradientDrawable bg = new GradientDrawable();
+            bg.setColor(Color.WHITE);
+            bg.setStroke(dp(1), Ui.ACCENT);
+            bg.setCornerRadius(dp(10));
+            more.setBackground(bg);
+            more.setLayoutParams(new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            more.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    billsShownCount = Math.min(billsShownCount + BILLS_PAGE, homeBills.size());
+                    fillBillsContainer();
+                }
+            });
+            billsContainer.addView(more);
         }
     }
 
@@ -384,16 +483,12 @@ public class MainActivity extends Activity {
         lp.bottomMargin = dp(8);
         wrap.setLayoutParams(lp);
 
-        TextView bell = tv("🔔", Ui.ACCENT, 64f, Typeface.NORMAL);
+        TextView bell = tv("🔔", Ui.ACCENT, 84f, Typeface.NORMAL);
         bell.setGravity(Gravity.CENTER);
         bell.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { ringBell(); }
         });
         wrap.addView(bell);
-
-        TextView hint = tv("Tap the bell", Ui.MUTED, 14f, Typeface.NORMAL);
-        hint.setGravity(Gravity.CENTER);
-        wrap.addView(hint);
         return wrap;
     }
 
@@ -401,16 +496,44 @@ public class MainActivity extends Activity {
         try {
             Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
             if (v != null && v.hasVibrator()) {
-                v.vibrate(VibrationEffect.createOneShot(180, VibrationEffect.DEFAULT_AMPLITUDE));
+                v.vibrate(VibrationEffect.createOneShot(120, VibrationEffect.DEFAULT_AMPLITUDE));
             }
         } catch (Exception ignore) { }
-        try {
-            Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
-            Ringtone r = RingtoneManager.getRingtone(this, sound);
-            if (r != null) r.play();
-        } catch (Exception ignore) { }
+        playDong();
         bellRung = true;
         if (homeFeed != null) homeFeed.setVisibility(View.VISIBLE);
+    }
+
+    /** Synthesise a low, decaying bell "dong" (no audio asset needed). */
+    private void playDong() {
+        try {
+            int sampleRate = 44100;
+            double duration = 1.4;
+            int n = (int) (sampleRate * duration);
+            short[] buf = new short[n];
+            double[] freqs = {196.0, 294.0, 392.0, 494.0};
+            double[] amps = {1.0, 0.55, 0.35, 0.2};
+            for (int i = 0; i < n; i++) {
+                double t = (double) i / sampleRate;
+                double env = Math.exp(-3.0 * t);
+                double s = 0.0;
+                for (int k = 0; k < freqs.length; k++) {
+                    s += amps[k] * Math.sin(2.0 * Math.PI * freqs[k] * t);
+                }
+                buf[i] = (short) (s * env * 12000.0);
+            }
+            final AudioTrack track = new AudioTrack(
+                    AudioManager.STREAM_NOTIFICATION, sampleRate,
+                    AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT,
+                    n * 2, AudioTrack.MODE_STATIC);
+            track.write(buf, 0, n);
+            track.play();
+            new Thread(new Runnable() {
+                @Override public void run() {
+                    try { Thread.sleep(1600); track.release(); } catch (Exception ignored) { }
+                }
+            }).start();
+        } catch (Exception ignore) { }
     }
 
     private TextView sectionHeader(String text) {

@@ -109,6 +109,39 @@
                     android:textColor="@color/ink" />
             </LinearLayout>
 
+            <!-- Postcode lookup (best-effort) -->
+            <LinearLayout
+                android:orientation="horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="#FFFFFF"
+                android:gravity="center_vertical"
+                android:paddingLeft="16dp"
+                android:paddingRight="16dp"
+                android:paddingBottom="10dp">
+
+                <EditText
+                    android:id="@+id/postcode_input"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="Enter BT postcode (e.g. BT53 6QP)"
+                    android:inputType="textCapCharacters"
+                    android:maxLines="1"
+                    android:imeOptions="actionGo"
+                    android:textColor="@color/ink"
+                    android:textColorHint="@color/muted" />
+
+                <Button
+                    android:id="@+id/postcode_btn"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginLeft="8dp"
+                    android:text="Find"
+                    android:textColor="#FFFFFF"
+                    android:backgroundTint="@color/accent" />
+            </LinearLayout>
+
             <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
                 android:id="@+id/swipe"
                 android:layout_width="match_parent"

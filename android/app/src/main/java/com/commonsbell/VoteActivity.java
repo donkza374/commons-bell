@@ -1,7 +1,9 @@
 package com.commonsbell;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -13,6 +15,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -258,6 +261,42 @@ public class VoteActivity extends Activity {
                 }
             });
         }
+
+        // share + compare actions
+        LinearLayout actions = new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        actions.setPadding(0, dp(10), 0, 0);
+        if (total > 0) {
+            Button share = actionButton("Share my votes");
+            share.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { shareAllVotes(); }
+            });
+            actions.addView(share);
+            LinearLayout gap = new LinearLayout(this);
+            gap.setLayoutParams(new LinearLayout.LayoutParams(dp(10), 0));
+            actions.addView(gap);
+        }
+        Button cmp = actionButton("Compare votes");
+        cmp.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { compareVotes(); }
+        });
+        actions.addView(cmp);
+        recCard.addView(actions);
+    }
+
+    private Button actionButton(String label) {
+        Button b = new Button(this);
+        b.setText(label);
+        b.setTextColor(Ui.ACCENT);
+        b.setTextSize(13);
+        b.setAllCaps(false);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setStroke(dp(1), Ui.ACCENT);
+        bg.setCornerRadius(dp(10));
+        b.setBackground(bg);
+        b.setLayoutParams(new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        return b;
     }
 
     private View buildLoggedRow(Logged e) {
@@ -273,6 +312,115 @@ public class VoteActivity extends Activity {
         int col = "AYE".equals(e.choice) ? Color.parseColor("#15803D") : Color.parseColor("#B91C1C");
         row.addView(chip(e.choice, col));
         return row;
+    }
+
+    // ---------------------------------------------------------------------
+    // Share + compare
+    // ---------------------------------------------------------------------
+    private void share(String text) {
+        try {
+            Intent i = new Intent(Intent.ACTION_SEND);
+            i.setType("text/plain");
+            i.putExtra(Intent.EXTRA_TEXT, text);
+            startActivity(Intent.createChooser(i, "Share"));
+        } catch (Exception ignored) { }
+    }
+
+    private void shareAllVotes() {
+        List<Logged> entries = getLoggedEntries();
+        if (entries.isEmpty()) return;
+        StringBuilder body = new StringBuilder();
+        body.append("My Commons Bell votes (").append(entries.size()).append("):\n");
+        for (Logged e : entries) {
+            String subject = (e.subject == null || e.subject.isEmpty())
+                    ? "Division " + e.docId : Ui.truncate(e.subject, 70);
+            body.append("• ").append(subject).append(" — ").append(e.choice).append("\n");
+        }
+        body.append("\nCompare your votes — open Commons Bell, tap “Compare votes” and paste:\n")
+            .append(encodeVotes(entries))
+            .append("\n\nGet Commons Bell: https://github.com/donkza374/commons-bell/releases");
+        share(body.toString());
+    }
+
+    /** Compact reversible code of the user's cast votes. */
+    private String encodeVotes(List<Logged> entries) {
+        StringBuilder sb = new StringBuilder("CBV1");
+        for (Logged e : entries) {
+            if (e.docId == null || e.docId.isEmpty()) continue;
+            sb.append("|").append(e.docId).append("=").append("AYE".equals(e.choice) ? "A" : "N");
+        }
+        return sb.toString();
+    }
+
+    /** Parse a shared code back into docId -> "AYE"/"NO". */
+    private Map<String, String> decodeVotes(String code) {
+        Map<String, String> out = new HashMap<>();
+        if (code == null || code.isEmpty()) return out;
+        String[] parts = code.split("\\|");
+        for (int i = 1; i < parts.length; i++) {
+            String[] kv = parts[i].split("=", 2);
+            if (kv.length == 2 && !kv[0].trim().isEmpty()) {
+                out.put(kv[0].trim(), "A".equalsIgnoreCase(kv[1].trim()) ? "AYE" : "NO");
+            }
+        }
+        return out;
+    }
+
+    private void compareVotes() {
+        final EditText input = new EditText(this);
+        input.setHint("Paste a shared vote code");
+        input.setSingleLine(true);
+        new AlertDialog.Builder(this)
+                .setTitle("Compare votes")
+                .setMessage("Paste the code someone shared and we'll show where your votes agree or differ.")
+                .setView(input)
+                .setPositiveButton("Compare", new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int w) {
+                        showComparison(input.getText().toString());
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void showComparison(String code) {
+        Map<String, String> theirs = decodeVotes(code);
+        Map<String, String> mine = new HashMap<>();
+        for (Logged e : getLoggedEntries()) {
+            if (e.docId != null && !e.docId.isEmpty()) mine.put(e.docId, e.choice);
+        }
+        int agree = 0, comparable = 0;
+        StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, String> en : theirs.entrySet()) {
+            String subject = voteSubject(en.getKey());
+            String my = mine.get(en.getKey());
+            if (my == null) {
+                sb.append("• ").append(subject).append("\n   them: ").append(en.getValue())
+                  .append("   ·   you: not voted yet\n");
+            } else {
+                comparable++;
+                boolean same = my.equalsIgnoreCase(en.getValue());
+                if (same) agree++;
+                sb.append("• ").append(subject).append("\n   them: ").append(en.getValue())
+                  .append("   ·   you: ").append(my)
+                  .append(same ? "   ✓ agree" : "   ✗ differ").append("\n");
+            }
+        }
+        String summary = (comparable == 0)
+                ? "You haven't voted on any of these yet."
+                : "You agreed on " + agree + " of " + comparable
+                  + " (" + (int) Math.round(agree * 100.0 / comparable) + "%).";
+        new AlertDialog.Builder(this)
+                .setTitle("Comparison")
+                .setMessage(summary + "\n\n" + sb.toString())
+                .setPositiveButton("Close", null)
+                .show();
+    }
+
+    private String voteSubject(String docId) {
+        DataFetcher.Vote v = voteMap.get(docId);
+        if (v != null && v.subject != null && !v.subject.isEmpty()) return v.subject;
+        return "Division " + docId;
     }
 
     private List<PartyScore> computeScores(List<Logged> withData) {
@@ -387,7 +535,25 @@ public class VoteActivity extends Activity {
             fillResults(v, resultArea);
         }
 
+        TextView shareBtn = tv("↗ Share this vote", Ui.ACCENT, 12f, Typeface.BOLD);
+        shareBtn.setPadding(0, dp(8), 0, 0);
+        shareBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View vv) { shareVote(v, recorded); }
+        });
+        card.addView(shareBtn);
+
         return card;
+    }
+
+    private void shareVote(DataFetcher.Vote v, String recorded) {
+        StringBuilder sb = new StringBuilder();
+        if ("AYE".equals(recorded) || "NO".equals(recorded)) {
+            sb.append("I voted ").append(recorded).append(" on: ").append(v.subject);
+        } else {
+            sb.append("What's your view on this Stormont vote? ").append(v.subject);
+        }
+        sb.append(" — Commons Bell. https://github.com/donkza374/commons-bell/releases");
+        share(sb.toString());
     }
 
     private void cast(String docId, String choice, DataFetcher.Vote v,
