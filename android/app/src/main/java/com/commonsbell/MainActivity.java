@@ -482,8 +482,14 @@ public class MainActivity extends Activity {
             homeFeed.addView(tv("Nothing scheduled in the coming days.", Ui.MUTED, 14f, Typeface.NORMAL));
         } else {
             int shown = 0;
+            String lastDay = "";
             for (DataFetcher.DiaryItem d : diary) {
                 if (shown++ >= 15) break;
+                String day = d.eventDate == null ? "" : d.eventDate;
+                if (!day.isEmpty() && !day.equals(lastDay)) {
+                    lastDay = day;
+                    homeFeed.addView(dateHeader(day, d.weekday));
+                }
                 homeFeed.addView(buildDiaryCard(d));
             }
         }
@@ -640,6 +646,13 @@ public class MainActivity extends Activity {
         if (d.weekday != null && !d.weekday.isEmpty()) sub += "  ·  " + d.weekday;
         col.addView(tv(sub, Ui.MUTED, 12f, Typeface.NORMAL));
         row.addView(col);
+
+        String et = d.eventType == null ? "" : d.eventType.toLowerCase();
+        if (et.contains("sitting") || et.contains("plenary")) {
+            row.addView(tag("Plenary", Ui.ACCENT));
+        } else if (et.contains("committee")) {
+            row.addView(tag("Committee", Color.parseColor("#0E7490")));
+        }
         card.addView(row);
         return card;
     }
@@ -657,7 +670,11 @@ public class MainActivity extends Activity {
                 (b.title != null && !b.title.isEmpty()) ? b.title : b.text);
 
         left.addView(tv(b.title, Ui.INK, 14f, Typeface.BOLD));
+        String stage = Ui.billStage(b.title);
         String sub = (b.type == null || b.type.isEmpty()) ? "" : b.type;
+        if (stage != null) {
+            sub = sub.isEmpty() ? stage : stage + "  ·  " + sub;
+        }
         if (b.date != null && !b.date.isEmpty()) {
             sub = sub.isEmpty() ? Ui.formatDate(b.date) : sub + "  ·  " + Ui.formatDate(b.date);
         }
@@ -792,6 +809,7 @@ public class MainActivity extends Activity {
             mlasContainer.addView(tv("No MLAs found for this area.", Ui.MUTED, 14f, Typeface.NORMAL));
             return;
         }
+        mlasContainer.addView(buildPartyLegend());
         for (final DataFetcher.Mla m : mlas) {
             List<DataFetcher.Statement> stmts = byName.get(m.name);
             if (stmts == null) stmts = Collections.emptyList();
@@ -833,8 +851,7 @@ public class MainActivity extends Activity {
         int[] att = (attendance == null) ? null : attendance.get(m.name);
         if (att != null && att[1] > 0) {
             int pct = (int) Math.round(att[0] * 100.0 / att[1]);
-            left.addView(tv("Voted in " + att[0] + " of " + att[1] + " recent divisions (" + pct + "%)",
-                    Ui.MUTED, 11f, Typeface.NORMAL));
+            left.addView(attendanceBar(pct, att[0], att[1]));
         }
         String last = mostRecentDate(stmts);
         if (!last.isEmpty()) {
@@ -928,7 +945,7 @@ public class MainActivity extends Activity {
             e.addView(tv(s.topic, Ui.ACCENT, 12f, Typeface.BOLD));
         }
         if (s.text != null && !s.text.isEmpty()) {
-            e.addView(tv(s.text, Ui.INK, 13f, Typeface.NORMAL));
+            e.addView(tv(Ui.truncate(s.text, 260), Ui.INK, 13f, Typeface.NORMAL));
         }
         if (s.url != null && !s.url.isEmpty()) {
             TextView link = tv("Official Report ↗", Ui.ACCENT, 12f, Typeface.BOLD);
@@ -966,28 +983,43 @@ public class MainActivity extends Activity {
             votesContainer.addView(tv("No recent divisions found.", Ui.MUTED, 14f, Typeface.NORMAL));
             return;
         }
+        votesContainer.addView(buildVoteLegend());
+        String lastDate = "";
         for (DataFetcher.Vote v : votes) {
+            String d = (v.date == null) ? ""
+                    : v.date.length() >= 10 ? v.date.substring(0, 10) : v.date;
+            if (!d.isEmpty() && !d.equals(lastDate)) {
+                lastDate = d;
+                votesContainer.addView(dateHeader(d));
+            }
             LinearLayout card = card();
             card.addView(tv(v.subject, Ui.INK, 14f, Typeface.BOLD));
+            if (hasTotals(v)) card.addView(resultBar(v));
             card.addView(tv(v.date + (v.type != null && !v.type.isEmpty()
                     ? "  ·  " + v.type : ""), Ui.MUTED, 12f, Typeface.NORMAL));
             if (Ui.isHighTurnout(v)) {
                 card.addView(badge("★ High turnout", Color.parseColor("#1F4E79")));
             }
 
+            Map<String, List<DataFetcher.MyVote>> groups = new HashMap<>();
             for (DataFetcher.MyVote mv : v.myVotes) {
-                LinearLayout row = new LinearLayout(this);
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                row.setGravity(Gravity.CENTER_VERTICAL);
-                row.setPadding(0, dp(4), 0, dp(4));
-
-                TextView who = tv(mv.name, Ui.partyColor(mv.party), 13f, Typeface.NORMAL);
-                who.setLayoutParams(new LinearLayout.LayoutParams(
-                        0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-                row.addView(who);
-
-                row.addView(chip(Ui.voteLabel(mv.vote), Ui.voteColor(mv.vote)));
-                card.addView(row);
+                String g = Ui.voteGroup(mv.vote);
+                List<DataFetcher.MyVote> list = groups.get(g);
+                if (list == null) { list = new ArrayList<>(); groups.put(g, list); }
+                list.add(mv);
+            }
+            String[] order = {"AYE", "NO", "ABSTAINED", "ABSENT", "OTHER"};
+            for (String g : order) {
+                List<DataFetcher.MyVote> list = groups.get(g);
+                if (list == null || list.isEmpty()) continue;
+                card.addView(groupHeader(g, list.size()));
+                for (DataFetcher.MyVote mv : list) {
+                    LinearLayout row = new LinearLayout(this);
+                    row.setOrientation(LinearLayout.VERTICAL);
+                    row.setPadding(dp(12), dp(2), 0, dp(2));
+                    row.addView(tv(mv.name, Ui.partyColor(mv.party), 13f, Typeface.NORMAL));
+                    card.addView(row);
+                }
             }
 
             if (hasVoteInfo(v)) {
@@ -1134,6 +1166,148 @@ public class MainActivity extends Activity {
         lp.topMargin = dp(4);
         t.setLayoutParams(lp);
         return t;
+    }
+
+    private TextView tag(String label, int color) {
+        TextView t = chip(label, color);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.leftMargin = dp(8);
+        t.setLayoutParams(lp);
+        return t;
+    }
+
+    private LinearLayout buildVoteLegend() {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, 0, 0, dp(4));
+        row.addView(legendDot("Aye", Color.parseColor("#15803D")));
+        row.addView(legendDot("No", Color.parseColor("#B91C1C")));
+        row.addView(legendDot("Abstain", Color.parseColor("#B45309")));
+        row.addView(legendDot("Absent", Ui.MUTED));
+        return row;
+    }
+
+    private LinearLayout buildPartyLegend() {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, 0, 0, dp(4));
+        row.addView(legendDot("SF", Color.parseColor("#008000")));
+        row.addView(legendDot("DUP", Color.parseColor("#D46A4A")));
+        row.addView(legendDot("UUP", Color.parseColor("#48A5EE")));
+        row.addView(legendDot("Alliance", Color.parseColor("#D4A017")));
+        row.addView(legendDot("SDLP", Color.parseColor("#2AA82A")));
+        row.addView(legendDot("TUV", Color.parseColor("#1F4E79")));
+        return row;
+    }
+
+    private TextView legendDot(String label, int color) {
+        TextView t = tv("● " + label, color, 10f, Typeface.NORMAL);
+        t.setPadding(0, 0, dp(8), 0);
+        return t;
+    }
+
+    private TextView dateHeader(String iso) {
+        return dateHeader(iso, null);
+    }
+
+    private TextView dateHeader(String iso, String weekday) {
+        String txt = Ui.formatDate(iso);
+        if (weekday != null && !weekday.isEmpty()) txt = weekday + " · " + txt;
+        TextView t = tv(txt, Ui.MUTED, 12f, Typeface.BOLD);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(12);
+        lp.bottomMargin = dp(6);
+        t.setLayoutParams(lp);
+        return t;
+    }
+
+    private TextView groupHeader(String group, int count) {
+        int color = "AYE".equals(group) ? Color.parseColor("#15803D")
+                : "NO".equals(group) ? Color.parseColor("#B91C1C")
+                : "ABSTAINED".equals(group) ? Color.parseColor("#B45309")
+                : Ui.MUTED;
+        TextView t = tv(groupLabel(group) + " · " + count, color, 12f, Typeface.BOLD);
+        t.setPadding(0, dp(6), 0, dp(2));
+        return t;
+    }
+
+    private String groupLabel(String g) {
+        if ("AYE".equals(g)) return "Aye";
+        if ("NO".equals(g)) return "No";
+        if ("ABSTAINED".equals(g)) return "Abstained";
+        if ("ABSENT".equals(g)) return "Absent";
+        return "Other";
+    }
+
+    private boolean hasTotals(DataFetcher.Vote v) {
+        return !empty(v.totalAyes) || !empty(v.totalNoes) || !empty(v.totalAbstentions);
+    }
+
+    private boolean empty(String s) { return s == null || s.trim().isEmpty(); }
+
+    private View resultBar(DataFetcher.Vote v) {
+        int a = parseIntSafe(v.totalAyes, 0);
+        int n = parseIntSafe(v.totalNoes, 0);
+        int ab = parseIntSafe(v.totalAbstentions, 0);
+        int total = a + n + ab;
+        LinearLayout bar = new LinearLayout(this);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(8));
+        blp.topMargin = dp(6);
+        bar.setLayoutParams(blp);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.parseColor("#E5E7EB"));
+        bg.setCornerRadius(dp(4));
+        bar.setBackground(bg);
+        bar.setClipToOutline(true);
+        if (total > 0) {
+            if (a > 0) bar.addView(seg(a, Color.parseColor("#15803D")));
+            if (n > 0) bar.addView(seg(n, Color.parseColor("#B91C1C")));
+            if (ab > 0) bar.addView(seg(ab, Color.parseColor("#B45309")));
+        }
+        return bar;
+    }
+
+    private View seg(int weight, int color) {
+        View v = new View(this);
+        v.setLayoutParams(new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.MATCH_PARENT, weight));
+        v.setBackgroundColor(color);
+        return v;
+    }
+
+    private View attendanceBar(int pct, int voted, int total) {
+        LinearLayout wrap = new LinearLayout(this);
+        wrap.setOrientation(LinearLayout.VERTICAL);
+        wrap.setPadding(0, dp(4), 0, 0);
+        LinearLayout track = new LinearLayout(this);
+        track.setOrientation(LinearLayout.HORIZONTAL);
+        track.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(6)));
+        GradientDrawable tb = new GradientDrawable();
+        tb.setColor(Color.parseColor("#E5E7EB"));
+        tb.setCornerRadius(dp(3));
+        track.setBackground(tb);
+        track.setClipToOutline(true);
+        if (pct > 0) {
+            View fill = new View(this);
+            fill.setLayoutParams(new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.MATCH_PARENT, pct));
+            fill.setBackgroundColor(Color.parseColor("#15803D"));
+            track.addView(fill);
+            View rest = new View(this);
+            rest.setLayoutParams(new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.MATCH_PARENT, 100 - pct));
+            rest.setBackgroundColor(Color.TRANSPARENT);
+            track.addView(rest);
+        }
+        wrap.addView(track);
+        wrap.addView(tv("Attended " + voted + " of " + total + " votes · " + pct + "%",
+                Ui.MUTED, 10f, Typeface.NORMAL));
+        return wrap;
     }
 
     private LinearLayout card() {

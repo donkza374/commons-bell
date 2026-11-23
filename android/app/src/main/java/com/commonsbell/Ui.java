@@ -124,4 +124,28 @@ public final class Ui {
         if (s == null) return 0;
         try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return 0; }
     }
+
+    /** Canonical group for a member's recorded vote, for grouping by outcome. */
+    public static String voteGroup(String vote) {
+        if (vote == null) return "OTHER";
+        String u = vote.toUpperCase();
+        for (String c : AYE_CODES) if (u.contains(c)) return "AYE";
+        for (String c : NO_CODES) if (u.contains(c)) return "NO";
+        if (u.contains("ABSTAIN")) return "ABSTAINED";
+        if (u.contains("ABSENT")) return "ABSENT";
+        return "OTHER";
+    }
+
+    /** The legislative stage named in a bill's title, if any. */
+    public static String billStage(String title) {
+        if (title == null) return null;
+        String t = title.toLowerCase();
+        if (t.contains("first stage")) return "First Stage";
+        if (t.contains("second stage")) return "Second Stage";
+        if (t.contains("committee stage")) return "Committee Stage";
+        if (t.contains("consideration stage")) return "Consideration Stage";
+        if (t.contains("further consideration")) return "Further Consideration";
+        if (t.contains("final stage")) return "Final Stage";
+        return null;
+    }
 }
