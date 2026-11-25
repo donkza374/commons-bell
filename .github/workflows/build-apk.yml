@@ -21,14 +21,14 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
+          gradle-version: '8.11.1'
 
-      - name: Install Android SDK 35 (if needed)
+      - name: Install Android SDK 36 (if needed)
         run: |
           SDKMGMT="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
           if [ -x "$SDKMGMT" ]; then
             yes | "$SDKMGMT" --licenses >/dev/null 2>&1 || true
-            "$SDKMGMT" "platforms;android-35" "build-tools;35.0.0" >/dev/null 2>&1 || true
+            "$SDKMGMT" "platforms;android-36" "build-tools;36.0.0" >/dev/null 2>&1 || true
           fi
 
       - name: Decode signing keystore
